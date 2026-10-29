@@ -26,7 +26,6 @@ import { isPurchaseProduct } from '@/libs/payment/iap/utils';
 import {
   createStripePortalSession,
   redirectToStripePortal,
-  getSubscriptionSuccessUrl as getStripeSubscriptionSuccessUrl,
   type StripePortalFlow,
 } from '@/libs/payment/stripe/client';
 import LegalLinks from '@/components/LegalLinks';
@@ -39,13 +38,6 @@ import StorageManager from './components/StorageManager';
 import SharedLinksSection from './components/SharedLinksSection';
 import { SyncPassphraseSection } from './components/SyncPassphraseSection';
 import { SyncCategoriesSection } from './components/SyncCategoriesSection';
-import Checkout from './components/Checkout';
-
-type CheckoutState = {
-  clientSecret: string;
-  sessionId: string;
-  planName: string;
-};
 
 const ProfilePage = () => {
   const _ = useTranslation();
@@ -55,18 +47,12 @@ const ProfilePage = () => {
   const { safeAreaInsets, isRoundedWindow } = useThemeStore();
 
   const [loading, setLoading] = useState(false);
-  const [showEmbeddedCheckout, setShowEmbeddedCheckout] = useState(false);
   const [showStorageManager, setShowStorageManager] = useState(false);
   const [showSharedLinksManager, setShowSharedLinksManager] = useState(false);
   const searchParams = useSearchParams();
   const [showSyncManager, setShowSyncManager] = useState(
     () => searchParams?.get('section') === 'sync',
   );
-  const [checkoutState, setCheckoutState] = useState<CheckoutState>({
-    clientSecret: '',
-    sessionId: '',
-    planName: '',
-  });
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -110,9 +96,7 @@ const ProfilePage = () => {
   });
 
   const handleGoBack = () => {
-    if (showEmbeddedCheckout) {
-      setShowEmbeddedCheckout(false);
-    } else if (showStorageManager) {
+    if (showStorageManager) {
       setShowStorageManager(false);
       refresh();
     } else if (showSharedLinksManager) {
@@ -123,14 +107,6 @@ const ProfilePage = () => {
       navigateBackFromProfile(router, searchParams?.get('redirect'));
     }
   };
-
-  const handleCheckoutSuccess = useCallback(
-    (sessionId: string) => {
-      setShowEmbeddedCheckout(false);
-      router.push(getStripeSubscriptionSuccessUrl(sessionId));
-    },
-    [router],
-  );
 
   const handleIAPRestorePurchase = async () => {
     setLoading(true);
@@ -257,17 +233,7 @@ const ProfilePage = () => {
               <Spinner loading className='text-gray-900' />
             </div>
           )}
-          {showEmbeddedCheckout ? (
-            <div className='bg-base-100 rounded-lg p-4'>
-              <Checkout
-                clientSecret={checkoutState.clientSecret}
-                sessionId={checkoutState.sessionId}
-                planName={checkoutState.planName}
-                onSuccess={handleCheckoutSuccess}
-              />
-            </div>
-          ) : (
-            <div className='sm:bg-base-200 overflow-hidden rounded-lg sm:p-6 sm:shadow-md'>
+          <div className='sm:bg-base-200 overflow-hidden rounded-lg sm:p-6 sm:shadow-md'>
               <div className='flex flex-col gap-y-8'>
                 <div className='flex flex-col gap-y-8 px-6'>
                   <UserInfo
@@ -330,7 +296,6 @@ const ProfilePage = () => {
                 <LegalLinks />
               </div>
             </div>
-          )}
         </div>
         <Toast />
       </div>

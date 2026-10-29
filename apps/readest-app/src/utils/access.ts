@@ -252,10 +252,17 @@ export const getTranslationQuota = (plan: UserPlan): number => {
 export const TTS_PLANS: readonly UserPlan[] = ['plus', 'pro'];
 
 // Our Reader fork: Readest Voice is removed (no readest-voice worker in this fork).
-export const isTTSInPlan = (plan: UserPlan): boolean => false;
+export const isTTSInPlan = (plan: UserPlan): boolean => {
+  void plan;
+  return false;
+};
 
 /** A Readest Voice tier: Plus unlocks its voices, Pro unlocks both tiers. */
-export const isVoiceTierInPlan = (tier: 'plus' | 'pro', plan: UserPlan): boolean => false;
+export const isVoiceTierInPlan = (tier: 'plus' | 'pro', plan: UserPlan): boolean => {
+  void tier;
+  void plan;
+  return false;
+};
 
 export const getTTSQuota = (plan: UserPlan): number => {
   const fixedQuota = parseInt(process.env['TTS_FIXED_QUOTA'] ?? '0');
