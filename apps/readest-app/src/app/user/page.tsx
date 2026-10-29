@@ -12,14 +12,11 @@ import { useQuotaStats } from '@/hooks/useQuotaStats';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUserActions } from '@/hooks/useUserActions';
 import { useAvailablePlans } from '@/hooks/useAvailablePlans';
-import type { PlanType } from '@/types/quota';
 import { navigateBackFromProfile } from '@/utils/nav';
 import { eventDispatcher } from '@/utils/event';
-import { isTauriAppPlatform } from '@/services/environment';
-import { getPlanDetails, shouldUseBillingPortal } from './utils/plan';
+import { getPlanDetails } from './utils/plan';
 import { Toast } from '@/components/Toast';
 import {
-  purchaseIAPProduct,
   restoreIAPPurchases,
   verifyApplePurchaseProducts,
   verifyGooglePurchaseProducts,
@@ -27,13 +24,9 @@ import {
 } from '@/libs/payment/iap/client';
 import { isPurchaseProduct } from '@/libs/payment/iap/utils';
 import {
-  createStripeCheckoutSession,
-  redirectToStripeCheckout,
   createStripePortalSession,
   redirectToStripePortal,
-  handleStripeCheckoutError,
   getSubscriptionSuccessUrl as getStripeSubscriptionSuccessUrl,
-  type StripeAvailablePlan,
   type StripePortalFlow,
 } from '@/libs/payment/stripe/client';
 import LegalLinks from '@/components/LegalLinks';
@@ -41,7 +34,6 @@ import Spinner from '@/components/Spinner';
 import ProfileHeader from './components/Header';
 import UserInfo from './components/UserInfo';
 import UsageStats from './components/UsageStats';
-import PlansComparison from './components/PlansComparison';
 import AccountActions from './components/AccountActions';
 import StorageManager from './components/StorageManager';
 import SharedLinksSection from './components/SharedLinksSection';
@@ -95,7 +87,7 @@ const ProfilePage = () => {
 
   useTheme({ systemUIVisible: false });
 
-  const { quotas, userProfilePlan = 'free', customizationPurchased } = useQuotaStats();
+  const { quotas, userProfilePlan = 'free' } = useQuotaStats();
   const {
     handleLogout,
     handleResetPassword,
@@ -132,56 +124,6 @@ const ProfilePage = () => {
     }
   };
 
-  const handleStripeSubscribe = async (productId?: string, planType: PlanType = 'subscription') => {
-    if (!productId) return;
-
-    // Someone who already holds a subscription changes plan or billing period
-    // in the billing portal. Opening a second checkout session would leave the
-    // old subscription running alongside the new one and bill them twice.
-    if (shouldUseBillingPortal(userProfilePlan, planType)) {
-      await openStripePortal('subscription_update');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { sessionId, clientSecret, url } = await createStripeCheckoutSession(
-        productId,
-        planType,
-      );
-
-      const foundPlan = availablePlans.find((plan) => plan.productId === productId);
-
-      if (!foundPlan) {
-        throw new Error(`Plan not found for product ID: ${productId}`);
-      }
-
-      const selectedPlan = foundPlan as StripeAvailablePlan;
-      const planName = selectedPlan.product?.name || selectedPlan.productName;
-
-      const isEmbeddedCheckout = isTauriAppPlatform();
-      if (isEmbeddedCheckout && sessionId && clientSecret) {
-        setShowEmbeddedCheckout(true);
-        setCheckoutState({
-          planName,
-          clientSecret,
-          sessionId,
-        });
-      } else {
-        await redirectToStripeCheckout(url);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      handleStripeCheckoutError(errorMessage);
-      eventDispatcher.dispatch('toast', {
-        type: 'info',
-        message: _('Failed to create checkout session'),
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCheckoutSuccess = useCallback(
     (sessionId: string) => {
       setShowEmbeddedCheckout(false);
@@ -189,22 +131,6 @@ const ProfilePage = () => {
     },
     [router],
   );
-
-  const handleIAPSubscribe = async (productId?: string) => {
-    if (!productId) return;
-
-    setLoading(true);
-    try {
-      const purchase = await purchaseIAPProduct(productId);
-      if (purchase) {
-        router.push(getIAPSubscriptionSuccessUrl(purchase));
-      }
-    } catch (error) {
-      console.error('IAP purchase error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleIAPRestorePurchase = async () => {
     setLoading(true);

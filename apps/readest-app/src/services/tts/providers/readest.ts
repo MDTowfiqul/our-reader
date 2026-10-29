@@ -147,7 +147,6 @@ export class ReadestVoiceProvider implements SpeechProvider {
   // When the server last refused for quota (0: not refused).
   #quotaExhaustedAt = 0;
   #quotaNoticeAt = 0;
-  #warmupFired = false;
   // Whether the server runs download jobs (null: not known yet, so one
   // download goes out at a time); without them downloads stream.
   #jobsAvailable: boolean | null = null;

@@ -12,11 +12,7 @@
  */
 import type { FileSyncProvider } from './provider';
 import type { S3Settings, WebDAVSettings } from '@/types/settings';
-import { createWebDAVProvider } from '@/services/sync/providers/webdav/WebDAVProvider';
 import { buildGoogleDriveProvider } from '@/services/sync/providers/gdrive/buildGoogleDriveProvider';
-import { buildOneDriveProvider } from '@/services/sync/providers/onedrive/buildOneDriveProvider';
-import { buildICloudProvider } from '@/services/sync/providers/icloud/buildICloudProvider';
-import { createS3Provider } from '@/services/sync/providers/s3/S3Provider';
 
 export type FileSyncBackendKind = 'webdav' | 'gdrive' | 's3' | 'onedrive' | 'icloud';
 
@@ -78,25 +74,14 @@ export const createFileSyncProvider = async (
   settings: FileSyncBackendsSettings,
 ): Promise<FileSyncProvider | null> => {
   // Our Reader fork: Google Drive is the only backup backend. Any other
-  // backend kind returns null so its engine can never run.
+  // backend kind returns null so its engine can never run. (The early
+  // return narrows `kind` to 'gdrive' below, so the provider build here
+  // is Drive-only by construction — no other backend is reachable.)
   if (kind !== 'gdrive') return null;
   const key = providerCacheKey(kind, settings);
   const cached = providerCache.get(kind);
   if (cached?.key === key) return cached.provider;
-  const provider =
-    kind === 'webdav'
-      ? settings.webdav
-        ? createWebDAVProvider(settings.webdav)
-        : null
-      : kind === 's3'
-        ? settings.s3
-          ? createS3Provider(settings.s3)
-          : null
-        : kind === 'onedrive'
-          ? await buildOneDriveProvider()
-          : kind === 'icloud'
-            ? await buildICloudProvider()
-            : await buildGoogleDriveProvider();
+  const provider = await buildGoogleDriveProvider();
   if (provider) providerCache.set(kind, { key, provider });
   return provider;
 };
