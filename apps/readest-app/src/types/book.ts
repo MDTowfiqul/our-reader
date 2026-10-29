@@ -153,6 +153,12 @@ export interface Book {
 
   lastUpdated?: number; // deprecated in favor of updatedAt
   progress?: [number, number] | null; // Add progress field: [current, total], 1-based page number
+  /** Our Reader rating, 1–10. Absent = unrated. Mirrored in BookConfig. */
+  rating?: number;
+  // Our Reader: ebook creator credit from Our Boighar, where the writer and
+  // the ebook creator are separate lines. Set at import (Boighar OPDS/link
+  // work); displayed in BookDetailView when present, hidden when absent.
+  creator?: string;
   readingStatus?: ReadingStatus;
   readingStatusUpdatedAt?: number; // ms; bumped only when readingStatus changes
   primaryLanguage?: string;
@@ -678,6 +684,11 @@ export interface BookConfig {
   schemaVersion?: number;
   bookHash?: string;
   metaHash?: string;
+  /** Our Reader rating, 1–10. Absent = unrated. Carried by Drive file sync. */
+  rating?: number;
+  // Our Reader: ebook creator credit from Our Boighar (see Book.creator).
+  // Carried by Drive file sync via this per-book config.
+  creator?: string;
   progress?: [number, number]; // [current pagenum, total pagenum], 1-based page number
   location?: string; // CFI of the current location
   xpointer?: string; // XPointer of the current location (for Koreader interoperability)

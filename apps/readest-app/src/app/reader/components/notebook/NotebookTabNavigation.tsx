@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import React from 'react';
 import { PiNotePencil, PiRobot } from 'react-icons/pi';
+import { WandSparkles } from 'lucide-react';
 
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -20,8 +21,15 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
   const { appService } = useEnv();
   const { settings } = useSettingsStore();
   const aiEnabled = settings?.aiSettings?.enabled ?? false;
+  const hasSummaryKey = !!settings?.aiSettings?.openrouterApiKey;
 
-  const tabs: NotebookTab[] = aiEnabled ? ['notes', 'ai'] : [];
+  // Summary needs only an OpenRouter key, not the AI chat toggle; the
+  // panel itself explains the missing key when there is none.
+  const tabs: NotebookTab[] = aiEnabled
+    ? ['notes', 'ai', 'summary']
+    : hasSummaryKey
+      ? ['notes', 'summary']
+      : [];
 
   if (tabs.length === 0) return null;
 
@@ -31,6 +39,8 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
         return _('Notes');
       case 'ai':
         return _('AI');
+      case 'summary':
+        return _('Summary');
       default:
         return '';
     }
@@ -42,6 +52,8 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
         return <PiNotePencil className='mx-auto' size={20} />;
       case 'ai':
         return <PiRobot className='mx-auto' size={20} />;
+      case 'summary':
+        return <WandSparkles className='mx-auto' size={20} />;
       default:
         return null;
     }

@@ -622,6 +622,8 @@ export const SERIF_FONTS = [
   'PT Serif',
   'Georgia',
   'Times New Roman',
+  // Our Reader: bundled under public/fonts/bengali/ (see styles/fonts.ts).
+  'Noto Serif Bengali',
 ];
 
 export const NON_FREE_FONTS = ['Georgia', 'Times New Roman'];
@@ -637,7 +639,15 @@ export const CJK_SERIF_FONTS = [
 
 export const CJK_SANS_SERIF_FONTS = ['Noto Sans SC', 'Noto Sans TC'];
 
-export const SANS_SERIF_FONTS = ['Roboto', 'Noto Sans', 'Open Sans', 'PT Sans', 'Helvetica'];
+export const SANS_SERIF_FONTS = [
+  'Roboto',
+  'Noto Sans',
+  'Open Sans',
+  'PT Sans',
+  'Helvetica',
+  // Our Reader: bundled under public/fonts/bengali/ (see styles/fonts.ts).
+  'Hind Siliguri',
+];
 
 export const MONOSPACE_FONTS = [
   'Fira Code',

@@ -77,6 +77,9 @@ export const createFileSyncProvider = async (
   kind: FileSyncBackendKind,
   settings: FileSyncBackendsSettings,
 ): Promise<FileSyncProvider | null> => {
+  // Our Reader fork: Google Drive is the only backup backend. Any other
+  // backend kind returns null so its engine can never run.
+  if (kind !== 'gdrive') return null;
   const key = providerCacheKey(kind, settings);
   const cached = providerCache.get(kind);
   if (cached?.key === key) return cached.provider;

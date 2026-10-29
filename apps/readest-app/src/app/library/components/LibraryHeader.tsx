@@ -269,6 +269,20 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </div>
         ) : (
           <div className='flex h-full items-center gap-x-2 sm:gap-x-4'>
+            {/* Our Reader: back to the Our Boighar library this reader serves.
+                NOTE: if the planned Our Boighar -> Our Ebooks rename is
+                executed, update this URL to the new site address. */}
+            <a
+              href='https://mdtowfiqul.github.io/our-boighar/'
+              target='_blank'
+              rel='noreferrer'
+              className='btn btn-ghost text-base-content/85 h-8 min-h-8 px-2'
+              title={_('Back to Boighar')}
+            >
+              <span className='font-sans text-base font-normal whitespace-nowrap sm:text-sm'>
+                {_('Back to Boighar')}
+              </span>
+            </a>
             <Dropdown
               label={_('View Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'

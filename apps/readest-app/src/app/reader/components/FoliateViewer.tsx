@@ -105,7 +105,7 @@ import { collectDocumentImages, DocumentImage } from '../utils/documentImages';
 import { footerReservesBand } from '../utils/footerBand';
 import { showTransientHighlight } from '../utils/transientHighlight';
 import { handleA11yNavigation } from '@/utils/a11y';
-import { isCJKLang } from '@/utils/lang';
+import { isBengaliLang, isCJKLang } from '@/utils/lang';
 import { getLocale } from '@/utils/misc';
 import { isMetered } from '@/utils/network';
 import { eventDispatcher } from '@/utils/event';
@@ -558,7 +558,11 @@ const FoliateViewer: React.FC<{
       }
 
       if (!bookData?.isFixedLayout) {
-        mountAdditionalFonts(detail.doc, isCJKLang(bookData.book?.primaryLanguage));
+        mountAdditionalFonts(
+          detail.doc,
+          isCJKLang(bookData.book?.primaryLanguage),
+          isBengaliLang(bookData.book?.primaryLanguage),
+        );
       }
 
       getLoadedFonts().forEach((font) => {
@@ -979,7 +983,9 @@ const FoliateViewer: React.FC<{
       };
       // The reader can close while view.open() is pending; its cleanup has run.
       if (unmountedRef.current) removeTransformListenersRef.current();
-      view.renderer.setStyles?.(getStyles(viewSettings, undefined, getLoadedFonts()));
+      view.renderer.setStyles?.(
+        getStyles(viewSettings, undefined, getLoadedFonts(), bookData?.book?.primaryLanguage),
+      );
       applyTranslationStyle(viewSettings);
 
       doubleClickDisabled.current = viewSettings.disableDoubleClick!;
@@ -1228,7 +1234,9 @@ const FoliateViewer: React.FC<{
       const renderer = viewRef.current.renderer;
       const viewSettings = getViewSettings(bookKey)!;
       const pageSettings = getPageViewSettings(viewSettings);
-      viewRef.current.renderer.setStyles?.(getStyles(viewSettings, undefined, getLoadedFonts()));
+      viewRef.current.renderer.setStyles?.(
+        getStyles(viewSettings, undefined, getLoadedFonts(), bookData?.book?.primaryLanguage),
+      );
       const docs = viewRef.current.renderer.getContents();
       docs.forEach(({ doc }) => {
         if (bookDoc.rendition?.layout === 'pre-paginated') {

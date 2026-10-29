@@ -44,12 +44,9 @@ export const cloudProviderDisplayName = (kind: CloudSyncProviderKind): string =>
 export const getEnabledFileSyncBackends = (
   settings: SystemSettings | null | undefined,
 ): FileSyncBackendKind[] => {
+  // Our Reader fork: Google Drive is the only file-sync backend.
   const enabled: FileSyncBackendKind[] = [];
-  if (settings?.webdav?.enabled) enabled.push('webdav');
   if (settings?.googleDrive?.enabled) enabled.push('gdrive');
-  if (settings?.s3?.enabled) enabled.push('s3');
-  if (settings?.onedrive?.enabled) enabled.push('onedrive');
-  if (settings?.icloud?.enabled) enabled.push('icloud');
   return enabled;
 };
 
@@ -67,8 +64,11 @@ export const hasAnyThirdPartyEnabled = (settings: SystemSettings | null | undefi
  * Cloud. Once the user touches a Cloud Sync checkbox the flag is explicit and
  * wins.
  */
+// Our Reader fork: Readest Cloud is OFF by default (absent flag = off).
+// An explicit `readestCloud.enabled: true` in existing settings is still
+// honoured, but new Our Reader installs never fall back to Readest Cloud.
 export const isReadestCloudEnabled = (settings: SystemSettings | null | undefined): boolean =>
-  settings?.readestCloud?.enabled ?? !hasAnyThirdPartyEnabled(settings);
+  settings?.readestCloud?.enabled ?? false;
 
 /** Every provider syncing the library on this device, Readest Cloud first. */
 export const getCloudSyncProviders = (

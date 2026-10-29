@@ -114,7 +114,11 @@ const getAdditionalCJKFontFaces = () => `
 }
 `;
 
-export const mountAdditionalFonts = async (document: Document, isCJK = false) => {
+export const mountAdditionalFonts = async (
+  document: Document,
+  isCJK = false,
+  isBengali = false,
+) => {
   // An SVG spine item has no <head> to mount into.
   if (!document.head) return;
   const mountCJKFonts = isCJK || isCJKEnv();
@@ -126,6 +130,20 @@ export const mountAdditionalFonts = async (document: Document, isCJK = false) =>
   if (mountCJKFonts) {
     fontFaces = getAdditionalCJKFontFaces();
     links = `${links}\n${getAdditionalCJKFontLinks()}`;
+  }
+
+  // Our Reader: bundled Bengali fonts, served from this app itself
+  // (public/fonts/bengali/) — not from Readest's font CDN, which only
+  // answers CORS for readest.com origins. The stylesheet's own src URLs
+  // are relative to it, so an absolute app-origin href works inside the
+  // reader iframe regardless of the section document's base URL. The
+  // woff2 files download only when a Bengali family is actually used.
+  if (isBengali) {
+    const appOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const href = appOrigin
+      ? `${appOrigin}/fonts/bengali/bengali-fonts.css`
+      : '/fonts/bengali/bengali-fonts.css';
+    links = `${links}\n  <link rel="stylesheet" href="${href}" crossorigin="anonymous" />`;
   }
 
   if (fontFaces) {

@@ -5,6 +5,7 @@ import {
   FALLBACK_FONTS,
   CJK_SANS_SERIF_FONTS,
   CJK_SERIF_FONTS,
+  DEFAULT_BOOK_FONT,
 } from '@/services/constants';
 import { BookFormat, FIXED_LAYOUT_FORMATS, ViewSettings } from '@/types/book';
 import {
@@ -16,6 +17,7 @@ import {
 } from '@/styles/themes';
 import { createFontCSS, CustomFont } from '@/styles/fonts';
 import { isDialogueHighlightActive } from './dialogueHighlight';
+import { isBengaliLang } from './lang';
 import { readStoredAmbientIsDarkMode } from './ambientLight';
 import { INLINE_FORMATTING_SELECTOR } from './inlineTags';
 import { getOSPlatform } from './misc';
@@ -38,9 +40,20 @@ const buildFontFamilyLists = (
   sansSerif: string,
   monospace: string,
   defaultCJKFont: string,
+  bookLanguage?: string,
 ) => {
   const lastSerifFonts = ['Georgia', 'Times New Roman'];
+  // Our Reader: a Bengali book whose serif/sans choice is still the app
+  // default gets the bundled Bengali font first in its chain, so Bengali
+  // text renders in Noto Serif Bengali / Hind Siliguri by default. A user
+  // who picked another font keeps that pick; the Bengali families remain
+  // in the fallback lists below, so Bengali glyphs still resolve to them.
+  const bengali = isBengaliLang(bookLanguage);
+  const serifLead = bengali && serif === DEFAULT_BOOK_FONT.serifFont ? ['Noto Serif Bengali'] : [];
+  const sansLead =
+    bengali && sansSerif === DEFAULT_BOOK_FONT.sansSerifFont ? ['Hind Siliguri'] : [];
   const serifFonts = [
+    ...serifLead,
     serif,
     ...(defaultCJKFont !== serif ? [defaultCJKFont] : []),
     ...SERIF_FONTS.filter(
@@ -53,6 +66,7 @@ const buildFontFamilyLists = (
     ...FALLBACK_FONTS,
   ];
   const sansSerifFonts = [
+    ...sansLead,
     sansSerif,
     ...(defaultCJKFont !== sansSerif ? [defaultCJKFont] : []),
     ...SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
@@ -60,7 +74,12 @@ const buildFontFamilyLists = (
     ...FALLBACK_FONTS,
   ];
   const monospaceFonts = [monospace, ...MONOSPACE_FONTS.filter((font) => font !== monospace)];
-  const quote = (fonts: string[]) => fonts.map((font) => `"${font}"`).join(', ');
+  // Dedupe (the Bengali lead above also appears in the SERIF/SANS lists).
+  const dedupe = (fonts: string[]) => Array.from(new Set(fonts));
+  const quote = (fonts: string[]) =>
+    dedupe(fonts)
+      .map((font) => `"${font}"`)
+      .join(', ');
   return {
     serif: `${quote(serifFonts)}, serif`,
     sansSerif: `${quote(sansSerifFonts)}, sans-serif`,
@@ -122,8 +141,9 @@ const getFontStyles = (
   minFontSize: number,
   fontWeight: number,
   overrideFont: boolean,
+  bookLanguage?: string,
 ) => {
-  const families = buildFontFamilyLists(serif, sansSerif, monospace, defaultCJKFont);
+  const families = buildFontFamilyLists(serif, sansSerif, monospace, defaultCJKFont, bookLanguage);
   const defaultFontFamily = defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif';
   // Normalize publisher body-copy sizes (the Readium CSS element set) so the
   // configured font size applies even when the book sets explicit sizes on its
@@ -1137,6 +1157,7 @@ export const getStyles = (
   viewSettings: ViewSettings,
   themeCode?: ThemeCode,
   customFonts: CustomFont[] = [],
+  bookLanguage?: string,
 ) => {
   if (!themeCode) {
     themeCode = getThemeCode();
@@ -1173,6 +1194,7 @@ export const getStyles = (
     viewSettings.minimumFontSize!,
     viewSettings.fontWeight!,
     viewSettings.overrideFont!,
+    bookLanguage,
   );
   // Inline `@font-face` rules for the caller-supplied custom fonts so
   // they ship to the iframe synchronously with the rest of the

@@ -167,11 +167,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
     setIsOpenLastBooks(newValue);
   };
 
-  const handleUpgrade = () => {
-    navigateToProfile(router);
-    setIsDropdownOpen?.(false);
-  };
-
   const handleSetRootDir = () => {
     setMigrateDataDirDialogVisible(true);
     setIsDropdownOpen?.(false);
@@ -422,6 +417,14 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
         onClick={cycleThemeMode}
       />
       <MenuItem label={_('Reading Statistics')} Icon={PiChartBar} onClick={openReadingStats} />
+      <MenuItem
+        label={_('Reader Dashboard')}
+        Icon={PiChartBar}
+        onClick={() => {
+          setIsDropdownOpen?.(false);
+          router.push('/dashboard');
+        }}
+      />
       <MenuItem label={_('Settings')} Icon={PiGear} onClick={openSettingsDialog} />
       <hr aria-hidden='true' className='border-base-200 my-1' />
       <MenuItem label={_('Advanced Settings')}>
@@ -476,9 +479,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
         </ul>
       </MenuItem>
       <hr aria-hidden='true' className='border-base-200 my-1' />
-      {user && userProfilePlan === 'free' && (
-        <MenuItem label={_('Upgrade to Readest Premium')} onClick={handleUpgrade} />
-      )}
+      {/* Our Reader fork: no Premium upgrade — all features are free. */}
       {isWebAppPlatform() && <MenuItem label={_('Download Readest')} onClick={downloadReadest} />}
       <MenuItem label={_('About Readest')} onClick={showAboutReadest} />
     </Menu>

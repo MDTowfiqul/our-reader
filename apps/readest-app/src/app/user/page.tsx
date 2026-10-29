@@ -372,16 +372,15 @@ const ProfilePage = () => {
                 ) : (
                   <>
                     <div className='flex flex-col gap-y-8 px-2 sm:px-6'>
-                      <PlansComparison
-                        availablePlans={availablePlans}
-                        userPlan={userProfilePlan}
-                        customizationPurchased={customizationPurchased}
-                        onSubscribe={
-                          appService.hasIAP && iapAvailable
-                            ? handleIAPSubscribe
-                            : handleStripeSubscribe
-                        }
-                      />
+                      {/* Our Reader fork: no Plus/Pro pricing — all features are free. */}
+                      <div className='bg-base-200 rounded-lg p-6 text-center'>
+                        <p className='text-lg font-semibold'>
+                          {_('Free — all features included in Our Reader')}
+                        </p>
+                        <p className='text-base-content/70 mt-2 text-sm'>
+                          {_('There are no Plus or Pro plans in Our Reader.')}
+                        </p>
+                      </div>
                     </div>
                     <div className='flex flex-col gap-y-8 px-6'>
                       <AccountActions

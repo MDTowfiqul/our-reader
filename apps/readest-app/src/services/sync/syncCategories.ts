@@ -118,6 +118,14 @@ export const isSyncCategoryLocked = (category: SyncCategory): boolean => {
  * categories (settings, stats, dictionaries, fonts, textures, OPDS catalogs)
  * have no file-based counterpart and always stay native.
  */
+// Our Reader fork note: do NOT re-gate these categories to Google Drive.
+// This function gates the native replica (Readest Cloud) rows only —
+// replicaPublish / replicaBinaryUpload check it. Flipping it to true when
+// Drive is on would re-enable replica pushes to a disabled cloud.
+// Book / progress / note already mirror to Drive through the file-sync
+// engine (library.json + books/<hash>/config.json), which does not
+// consult this function, so Drive backup of those categories works
+// without touching this gate.
 const PROVIDER_GATED_CATEGORIES: ReadonlySet<SyncCategory> = new Set([
   'book',
   'progress',

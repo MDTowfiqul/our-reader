@@ -7,6 +7,9 @@ import { BookMetadata } from '@/libs/document';
 import { useEnv } from '@/context/EnvContext';
 import { useAuth } from '@/context/AuthContext';
 import { useThemeStore } from '@/store/themeStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useLibraryStore } from '@/store/libraryStore';
+import { useBookDataStore } from '@/store/bookDataStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMetadataEdit } from './useMetadataEdit';
 import { DeleteAction } from '@/types/system';
@@ -66,6 +69,7 @@ const BookDetailModal: React.FC<BookDetailModalProps> = ({
   const { envConfig, appService } = useEnv();
   const { user } = useAuth();
   const { safeAreaInsets } = useThemeStore();
+  const { settings } = useSettingsStore();
   const [activeDeleteAction, setActiveDeleteAction] = useState<DeleteMenuAction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -194,6 +198,37 @@ const BookDetailModal: React.FC<BookDetailModalProps> = ({
     setActiveDeleteAction(null);
   };
 
+  // Rating lives on the Book (library.json) and in the per-book config.json,
+  // so the Drive file-sync carries it; the reader's in-memory config is
+  // updated too when this book is currently open.
+  const handleRatingChange = async (rating: number | null) => {
+    const updatedBook: Book = {
+      ...displayBook,
+      rating: rating ?? undefined,
+      updatedAt: Date.now(),
+    };
+    setDisplayBook(updatedBook);
+    try {
+      await useLibraryStore.getState().updateBook(envConfig, updatedBook);
+      if (appService) {
+        const config = await appService.loadBookConfig(updatedBook, settings);
+        await appService.saveBookConfig(
+          updatedBook,
+          { ...config, rating: rating ?? undefined, updatedAt: Date.now() },
+          settings,
+        );
+      }
+      const readerConfig = useBookDataStore.getState().getConfig(updatedBook.hash);
+      if (readerConfig) {
+        useBookDataStore.getState().setConfig(updatedBook.hash, {
+          rating: rating ?? undefined,
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to save rating:', err);
+    }
+  };
+
   const handleDelete = () => handleDeleteAction('both');
   const handleDeleteCloudBackup = () => handleDeleteAction('cloud');
   const handleDeleteLocalCopy = () => handleDeleteAction('local');
@@ -299,6 +334,7 @@ const BookDetailModal: React.FC<BookDetailModalProps> = ({
                     ? handleOfflineDownload
                     : undefined
                 }
+                onRatingChange={handleRatingChange}
                 offlinePremiumLabel={offlinePremiumLabel}
                 onMetadataValueClick={onMetadataValueClick}
               />

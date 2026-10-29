@@ -481,6 +481,9 @@ const compareBookByKey = (
       return getBookReadRatio(a) - getBookReadRatio(b);
     case LibrarySortByType.Pages:
       return (getBookPageCount(a) ?? 0) - (getBookPageCount(b) ?? 0);
+    case LibrarySortByType.Rating:
+      // Unrated books count as 0, so they sit last on a descending sort.
+      return (a.rating ?? 0) - (b.rating ?? 0);
     case LibrarySortByType.Series: {
       // Group by series name first so books of the same series stay consecutive,
       // then order within a series by index. Comparing index alone would interleave
@@ -907,6 +910,9 @@ export const getBookSortValue = (book: Book, sortBy: LibrarySortByType): number 
     case LibrarySortByType.Pages:
       return getBookPageCount(book) ?? 0;
 
+    case LibrarySortByType.Rating:
+      return book.rating ?? 0;
+
     case LibrarySortByType.Published: {
       const published = book.metadata?.published;
       if (!published) return 0;
@@ -980,6 +986,10 @@ export const getGroupSortValue = (
     case LibrarySortByType.Pages:
       // Return the group's total page count
       return books.reduce((sum, b) => sum + (getBookPageCount(b) ?? 0), 0);
+
+    case LibrarySortByType.Rating:
+      // Return the group's highest rating
+      return Math.max(...books.map((b) => b.rating ?? 0));
 
     case LibrarySortByType.Published: {
       // Return the most recent published date

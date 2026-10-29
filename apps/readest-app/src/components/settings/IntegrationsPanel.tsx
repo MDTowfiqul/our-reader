@@ -703,6 +703,7 @@ const IntegrationsPanel: React.FC = () => {
         </div>
       </div>
 
+      {/* Our Reader fork: Google Drive is the only cloud-sync backend shown. WebDAV, S3, OneDrive, iCloud and Readest Cloud rows are hidden below. */}
       <div className='w-full' data-setting-id='settings.integrations.cloudSync'>
         <SectionTitle className='mb-2'>{_('Cloud Sync')}</SectionTitle>
         <div className='card eink-bordered border-base-200 bg-base-100 overflow-hidden border'>
@@ -711,7 +712,8 @@ const IntegrationsPanel: React.FC = () => {
             role='group'
             aria-label={_('Cloud sync providers')}
           >
-            <CloudProviderRow
+            {false && (
+              <CloudProviderRow
               icon={RiCloudFill}
               title={_('Readest Cloud')}
               status={readestStatus}
@@ -721,10 +723,11 @@ const IntegrationsPanel: React.FC = () => {
               onOpen={() => (user ? setSubPage('readest-cloud') : navigateToLogin(router))}
               toggleLabel={_('Sync with Readest Cloud')}
             />
+            )}
             {/* Third-party providers are premium: every row carries the tier
                 badge; on a free plan the checkbox is disabled and opening a
                 row routes to the upgrade page instead of the config sub-page. */}
-            {(appService?.isDesktopApp ||
+            {false && (appService?.isDesktopApp ||
               appService?.isAndroidApp ||
               appService?.isIOSApp ||
               // Web: only when a Web-type GIS client id is configured for this build.
@@ -747,7 +750,8 @@ const IntegrationsPanel: React.FC = () => {
                 toggleLabel={_('Sync with Google Drive')}
               />
             )}
-            <CloudProviderRow
+            {false && (
+              <CloudProviderRow
               icon={RiCloudLine}
               title={_('WebDAV')}
               status={webdavStatus}
@@ -762,7 +766,9 @@ const IntegrationsPanel: React.FC = () => {
               onOpen={() => (isCloudSyncPremium ? setSubPage('webdav') : navigateToProfile(router))}
               toggleLabel={_('Sync with WebDAV')}
             />
-            <CloudProviderRow
+            )}
+            {false && (
+              <CloudProviderRow
               icon={RiDatabase2Line}
               title={_('S3 Storage')}
               status={s3Status}
@@ -777,6 +783,7 @@ const IntegrationsPanel: React.FC = () => {
               onOpen={() => (isCloudSyncPremium ? setSubPage('s3') : navigateToProfile(router))}
               toggleLabel={_('Sync with S3')}
             />
+            )}
             {(appService?.isDesktopApp ||
               appService?.isAndroidApp ||
               appService?.isIOSApp ||
@@ -800,7 +807,7 @@ const IntegrationsPanel: React.FC = () => {
                 toggleLabel={_('Sync with OneDrive')}
               />
             )}
-            {(appService?.isIOSApp || appService?.isMacOSApp) && (
+            {false && (appService?.isIOSApp || appService?.isMacOSApp) && (
               <CloudProviderRow
                 icon={RiAppleLine}
                 title={_('iCloud')}

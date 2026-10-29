@@ -38,7 +38,7 @@ import {
   getFootnoteSelectionCfi,
 } from '../utils/footnoteCfi';
 import { FoliateView, NOTE_PREFIX } from '@/types/view';
-import { isCJKLang } from '@/utils/lang';
+import { isBengaliLang, isCJKLang } from '@/utils/lang';
 import { Overlay } from '@/components/Overlay';
 import Popup from '@/components/Popup';
 
@@ -320,7 +320,11 @@ const FootnotePopup: React.FC<FootnotePopupProps> = ({
         const { doc, index } = e.detail as { doc: Document; index: number };
         const bookData = getBookData(bookKey)!;
         keepTextAlignment(doc);
-        mountAdditionalFonts(doc, isCJKLang(bookData.book?.primaryLanguage));
+        mountAdditionalFonts(
+          doc,
+          isCJKLang(bookData.book?.primaryLanguage),
+          isBengaliLang(bookData.book?.primaryLanguage),
+        );
         getLoadedFonts().forEach((font) => {
           mountCustomFont(doc, font);
         });

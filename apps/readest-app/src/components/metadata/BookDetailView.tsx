@@ -57,6 +57,8 @@ interface BookDetailViewProps {
   /** Set when the offline download needs an upgrade; shown as a badge. */
   offlinePremiumLabel?: string;
   onMetadataValueClick?: (type: 'tag' | 'subject', value: string) => void;
+  /** Called when the user sets or clears the 1–10 rating; null clears it. */
+  onRatingChange?: (rating: number | null) => void;
 }
 
 const BookDetailView: React.FC<BookDetailViewProps> = ({
@@ -75,6 +77,7 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
   onDownloadOffline,
   offlinePremiumLabel,
   onMetadataValueClick,
+  onRatingChange,
 }) => {
   const _ = useTranslation();
   const { envConfig } = useEnv();
@@ -143,6 +146,34 @@ const BookDetailView: React.FC<BookDetailViewProps> = ({
             <p className='text-neutral-content line-clamp-1'>
               {formatAuthors(book.author, book.primaryLanguage) || _('Unknown')}
             </p>
+            {book.creator ? (
+              <p className='text-neutral-content line-clamp-1'>
+                {_('Creator')}: {book.creator}
+              </p>
+            ) : null}
+            {onRatingChange && (
+              <label className='mt-1 flex items-center gap-2 text-xs'>
+                <span>{_('My rating')}</span>
+                <select
+                  className='select select-xs select-bordered'
+                  aria-label={_('My rating')}
+                  value={book.rating ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? null : Number(e.target.value);
+                    if (value === null || (Number.isInteger(value) && value >= 1 && value <= 10)) {
+                      onRatingChange(value);
+                    }
+                  }}
+                >
+                  <option value=''>{_('Unrated')}</option>
+                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>
+                      {n} / 10
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <div className='flex flex-nowrap items-center gap-3 sm:gap-x-4'>
             {onEdit && (

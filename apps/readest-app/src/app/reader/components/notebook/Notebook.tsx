@@ -25,6 +25,7 @@ import {
   useNotebookDocumentCoordinator,
 } from '../../hooks/useNotebookDocumentCoordinator';
 import AIAssistant from './AIAssistant';
+import SummaryPanel from './SummaryPanel';
 import NotebookHeader from './Header';
 import NotebookEditor from './NotebookEditor';
 import NotebookTabNavigation from './NotebookTabNavigation';
@@ -126,7 +127,7 @@ const Notebook: React.FC = () => {
     });
   };
 
-  const handleTabChange = (tab: 'notes' | 'ai') => {
+  const handleTabChange = (tab: 'notes' | 'ai' | 'summary') => {
     setNotebookActiveTab(tab);
     saveSysSettings(envConfig, 'globalReadSettings', {
       ...settings.globalReadSettings,
@@ -266,6 +267,10 @@ const Notebook: React.FC = () => {
         {notebookActiveTab === 'ai' ? (
           <div className='flex min-h-0 flex-1 flex-col'>
             <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
+          </div>
+        ) : notebookActiveTab === 'summary' ? (
+          <div className='flex min-h-0 flex-1 flex-col'>
+            <SummaryPanel bookKey={sideBarBookKey} />
           </div>
         ) : (
           <NotebookEditor

@@ -175,10 +175,12 @@ export class ReadestVoiceProvider implements SpeechProvider {
   // Available to every reader, on any plan: a voice the plan lacks is listed
   // disabled and gated only when it is picked or played.
   async init(): Promise<boolean> {
-    // A new session (or day) may have fresh quota.
+    // Our Reader fork: Readest Voice is disabled — this fork has no
+    // readest-voice worker, so the engine must never be offered. Fallback
+    // is Edge TTS + system voices + user-key custom TTS.
     this.#quotaExhaustedAt = 0;
-    this.#voices = null; // the next listing asks again (plan or catalog may change)
-    return true;
+    this.#voices = null;
+    return false;
   }
 
   // Plus voices before Pro ones, each by name.
@@ -189,13 +191,8 @@ export class ReadestVoiceProvider implements SpeechProvider {
 
   // Boots a worker when the voice picker opens; once per provider.
   warmup(): void {
-    if (this.#warmupFired) return;
-    this.#warmupFired = true;
-    fetchWithAuth(`${getReadestVoiceAPIBaseUrl()}/tts/readest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ warmup: true }),
-    }).catch(() => {});
+    // Our Reader fork: disabled with the engine (no worker to warm up).
+    return;
   }
 
   synthesize(

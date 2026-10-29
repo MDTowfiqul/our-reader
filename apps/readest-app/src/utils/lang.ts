@@ -13,6 +13,14 @@ export const isCJKLang = (lang: string | null | undefined): boolean => {
   return ['zh', 'ja', 'ko', 'zho', 'jpn', 'kor'].includes(normalizedLang);
 };
 
+// Our Reader: Bengali books get bundled Bengali fonts + a Bengali default
+// font (see styles/fonts.ts and utils/style.ts).
+export const isBengaliLang = (lang: string | null | undefined): boolean => {
+  if (!lang) return false;
+  const normalizedLang = normalizedLangCode(lang);
+  return ['bn', 'ben'].includes(normalizedLang);
+};
+
 /**
  * Languages whose primary script has no uppercase/lowercase distinction.
  * Matters for UI rules that lean on the `uppercase` CSS property for visual

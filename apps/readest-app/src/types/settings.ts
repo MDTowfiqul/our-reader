@@ -27,6 +27,7 @@ export const LibrarySortByType = {
   Progress: 'progress',
   Pages: 'pages',
   TimeRemaining: 'timeRemaining',
+  Rating: 'rating',
 } as const;
 
 export type LibrarySortByType = (typeof LibrarySortByType)[keyof typeof LibrarySortByType];
