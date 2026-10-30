@@ -327,9 +327,19 @@ export class WebSpeechClient implements TTSClient {
     // Match by primary language so the voice set stays the same across a book
     // whose sections mix region variants (e.g. en-US front matter and en-GB
     // body text); the requested locale's voices sort first. See #4033.
-    const filteredVoices = this.#voices
+    const matchedVoices = this.#voices
       .filter((voice) => isSameLang(voice.lang, lang))
       .filter(isNotBlacklisted);
+    // "Use web TTS" fallback: when the phone has device voices but none for
+    // the book's language, showing 0 voices (and refusing to play) is worse
+    // than speaking with another language's voice. The group name says so
+    // plainly, so a Bengali book read by an English voice is never passed
+    // off as a Bengali voice. Installing the book's language remains the
+    // real fix; this only unblocks playback until then.
+    const isFallback = matchedVoices.length === 0;
+    const filteredVoices = isFallback
+      ? this.#voices.filter(isNotBlacklisted)
+      : matchedVoices;
     const availableVoiceIds = new Set(filteredVoices.map((voice) => voice.voiceURI));
     const seenIds = new Set<string>();
     const voices = filteredVoices
@@ -364,7 +374,7 @@ export class WebSpeechClient implements TTSClient {
 
     const voicesGroup: TTSVoicesGroup = {
       id: 'web-speech-api',
-      name: 'Google Device TTS',
+      name: isFallback ? 'Google Device TTS (other languages)' : 'Google Device TTS',
       voices: voices.sort(TTSUtils.sortVoicesPreferLocaleFunc(locale)),
       disabled: !this.initialized || voices.length === 0,
     };
