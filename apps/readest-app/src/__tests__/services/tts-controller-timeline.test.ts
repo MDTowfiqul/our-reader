@@ -175,9 +175,13 @@ describe('TTSController section timeline', () => {
     controller = new TTSController(null, makeView());
     await controller.init();
     await controller.initViewTTS(0);
+    // These suites exercise timeline math against a media-clock engine.
+    // Engine selection is covered by the controller suite; the Edge mock
+    // stands in for that engine here even though init no longer probes it.
+    controller.ttsClient = controller.ttsEdgeClient;
   });
 
-  test('ensureTimeline builds lazily for the edge client and caches per section', async () => {
+  test('ensureTimeline builds lazily for a media-clock client and caches per section', async () => {
     const timeline = await controller.ensureTimeline();
     expect(timeline).not.toBeNull();
     expect(timeline!.length).toBe(3);
@@ -277,6 +281,10 @@ describe('TTSController lyrics', () => {
     controller = new TTSController(null, makeView());
     await controller.init();
     await controller.initViewTTS(0);
+    // These suites exercise timeline math against a media-clock engine.
+    // Engine selection is covered by the controller suite; the Edge mock
+    // stands in for that engine here even though init no longer probes it.
+    controller.ttsClient = controller.ttsEdgeClient;
   });
 
   test('supportsLyrics requires both a media clock and real text timing', async () => {

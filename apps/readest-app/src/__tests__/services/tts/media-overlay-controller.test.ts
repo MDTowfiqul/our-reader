@@ -263,16 +263,17 @@ describe('narration selection', () => {
 
     expect(controller.narrationAvailable).toBe(true);
     expect(controller.narrationActive).toBe(false);
-    expect(controller.ttsClient).toBe(controller.ttsEdgeClient);
+    // Edge is no longer probed at init, so synthesis falls back to the device client.
+    expect(controller.ttsClient).toBe(controller.ttsWebClient);
   });
 
-  test('a book without overlays is unaffected and keeps the preferred client', async () => {
+  test('a book without overlays is unaffected and falls back to the device client', async () => {
     const controller = new TTSController(null, makeView([false, false]));
     await controller.init();
 
     expect(controller.narrationAvailable).toBe(false);
     expect(controller.narrationActive).toBe(false);
-    expect(controller.ttsClient).toBe(controller.ttsEdgeClient);
+    expect(controller.ttsClient).toBe(controller.ttsWebClient);
   });
 
   test('a format that cannot read its own container offers no narration', async () => {
@@ -280,7 +281,7 @@ describe('narration selection', () => {
     await controller.init();
 
     expect(controller.narrationAvailable).toBe(false);
-    expect(controller.ttsClient).toBe(controller.ttsEdgeClient);
+    expect(controller.ttsClient).toBe(controller.ttsWebClient);
   });
 
   test('a paired audiobook is offered as narration without EPUB media overlays', async () => {

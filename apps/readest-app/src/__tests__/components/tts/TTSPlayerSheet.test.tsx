@@ -100,10 +100,12 @@ import TTSPlayerSheet from '@/app/reader/components/tts/TTSPlayerSheet';
 const waitFor = <T,>(callback: () => T | Promise<T>) =>
   waitForWithOptions(callback, { interval: 1 });
 
+// The device group stands in for what the picker lists after Edge TTS
+// was removed from it (see TTSController.getVoices).
 const voiceGroups = [
   {
-    id: 'edge',
-    name: 'Edge TTS',
+    id: 'web-speech-api',
+    name: 'Google Device TTS',
     voices: [
       { id: 'ava', name: 'Ava', lang: 'en-US', disabled: false },
       { id: 'guy', name: 'Guy', lang: 'en-US', disabled: false },
@@ -737,7 +739,7 @@ describe('TTSPlayerSheet', () => {
     const row = (name: string) => screen.getByText(name).closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).textContent).toBe('XiaoyuPro');
     expect(row('Zifang').textContent).toBe('ZifangPlus');
-    fireEvent.click(screen.getByRole('button', { name: /Edge TTS/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Google Device TTS/ }));
     expect(row('Guy').textContent).toBe('Guy');
   });
 
@@ -757,8 +759,8 @@ describe('TTSPlayerSheet', () => {
         ],
       },
       {
-        id: 'edge-tts',
-        name: 'Edge TTS',
+        id: 'web-speech-api',
+        name: 'Google Device TTS',
         voices: [
           {
             id: 'en-US-AvaMultilingualNeural',
@@ -774,7 +776,7 @@ describe('TTSPlayerSheet', () => {
     const row = (name: string) => screen.getAllByText(name).at(-1)!.closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).innerHTML).toContain('text-base-content/40');
     expect(screen.getByText('Pro').className).toContain('ms-auto');
-    fireEvent.click(screen.getByRole('button', { name: /Edge TTS/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Google Device TTS/ }));
     expect(row('Ava').textContent).toBe('AvaMultilingual');
     expect(screen.getByText('Multilingual').className).toContain('ms-auto');
   });
@@ -791,13 +793,13 @@ describe('TTSPlayerSheet', () => {
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
     const kokoro = await waitFor(() => screen.getByRole('button', { name: /Kokoro/ }));
-    const edge = screen.getByRole('button', { name: /Edge TTS/ });
+    const device = screen.getByRole('button', { name: /Google Device TTS/ });
     // The group of the voice in use opens, and only it.
-    expect([kokoro, edge].map((h) => h.getAttribute('aria-expanded'))).toEqual(['false', 'true']);
+    expect([kokoro, device].map((h) => h.getAttribute('aria-expanded'))).toEqual(['false', 'true']);
     expect(screen.getByText('Guy')).toBeTruthy();
     expect(screen.queryByText('af_heart')).toBeNull();
     fireEvent.click(kokoro);
-    expect([kokoro, edge].map((h) => h.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
+    expect([kokoro, device].map((h) => h.getAttribute('aria-expanded'))).toEqual(['true', 'false']);
     expect(screen.getByText('af_heart')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Guy' })).toBeNull();
     // A fixed height while choosing a voice: folding never resizes the sheet.
@@ -806,11 +808,14 @@ describe('TTSPlayerSheet', () => {
     expect(boxClass()).not.toContain('sm:h-[var(--tts-player-h,auto)]!');
     // Tapping the open group folds it: at most one group is open.
     fireEvent.click(kokoro);
-    expect([kokoro, edge].map((h) => h.getAttribute('aria-expanded'))).toEqual(['false', 'false']);
+    expect([kokoro, device].map((h) => h.getAttribute('aria-expanded'))).toEqual([
+      'false',
+      'false',
+    ]);
     expect(screen.queryByText('af_heart')).toBeNull();
     // Folded, the group of the voice in use still shows it, and stands out.
-    expect(edge.textContent).toContain('Guy');
-    expect(edge.className).toContain('font-semibold');
+    expect(device.textContent).toContain('Guy');
+    expect(device.className).toContain('font-semibold');
     expect(kokoro.textContent).not.toContain('af_heart');
     expect(kokoro.className).not.toContain('font-semibold');
   });

@@ -223,18 +223,18 @@ describe('init', () => {
       expect(done).toBe(false);
       await vi.advanceTimersByTimeAsync(2_000);
       expect(done).toBe(true);
-      // Readest Voice is unavailable this session; Edge reads.
-      expect(controller.ttsClient.name).toBe('edge-tts');
+      // Readest Voice is unavailable this session; the device client reads.
+      expect(controller.ttsClient.name).toBe('web-speech');
     } finally {
       h.readestHang = false;
       vi.useRealTimers();
     }
   });
 
-  test('Readest Voice is available but Edge stays the default engine', async () => {
+  test('Readest Voice is available but the device client stays the default engine', async () => {
     await controller.init();
     expect(readest().init).toHaveBeenCalled();
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
     expect(controller.ttsReadestVoices).toEqual(READEST_VOICES);
   });
 
@@ -246,17 +246,14 @@ describe('init', () => {
 });
 
 describe('voices', () => {
-  test('lists the Readest group after native and before Edge, and warms the worker', async () => {
+  test('lists the Readest group, and warms the worker', async () => {
     h.customInit = false;
     await controller.init();
     vi.mocked(readest().getVoices).mockResolvedValue([
       { id: 'readest-tts', name: 'Readest Voice', voices: READEST_VOICES },
     ]);
-    vi.mocked(controller.ttsEdgeClient.getVoices).mockResolvedValue([
-      { id: 'edge-tts', name: 'Edge TTS', voices: [] },
-    ]);
     const groups = await controller.getVoices('en');
-    expect(groups.map((g) => g.id)).toEqual(['readest-tts', 'edge-tts']);
+    expect(groups.map((g) => g.id)).toEqual(['readest-tts']);
     expect(h.warmup).toHaveBeenCalledTimes(1);
   });
 
@@ -274,22 +271,22 @@ describe('voices', () => {
 });
 
 describe('book language', () => {
-  test('a remembered Readest choice yields to Edge for a language it has no voice for', async () => {
+  test('a remembered Readest choice yields to the device client for a language it has no voice for', async () => {
     vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('readest-tts');
     await controller.init();
     expect(controller.ttsClient).toBe(readest());
     await controller.setLang('de');
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
     // The choice itself is kept for books Readest Voice can read.
     expect(TTSUtils.setPreferredClient).not.toHaveBeenCalled();
   });
 
-  test('a remembered Readest choice yields to Edge when the plan lacks every voice', async () => {
+  test('a remembered Readest choice yields to the device client when the plan lacks every voice', async () => {
     h.readestVoices = READEST_VOICES.map((voice) => ({ ...voice, disabled: true }));
     vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('readest-tts');
     await controller.init();
     await controller.setLang('en-US');
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
   });
 
   test('keeps Readest Voice for a language it can voice', async () => {
@@ -314,7 +311,7 @@ describe('setVoice', () => {
   test("the engine-default voice ('') never selects Readest Voice", async () => {
     await controller.init();
     await controller.setVoice('', 'en');
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
   });
 
   test('a Readest voice selects the Readest client', async () => {
@@ -372,7 +369,7 @@ describe('custom TTS services', () => {
     expect((h.customArgs[0] as CachingProvider).id).toBe('custom-tts');
     await controller.init();
     expect(custom().init).toHaveBeenCalled();
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
     vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('custom-tts');
     await controller.init();
     expect(controller.ttsClient).toBe(custom());
@@ -383,11 +380,8 @@ describe('custom TTS services', () => {
     vi.mocked(readest().getVoices).mockResolvedValue([
       { id: 'readest-tts', name: 'Readest Voice', voices: READEST_VOICES },
     ]);
-    vi.mocked(controller.ttsEdgeClient.getVoices).mockResolvedValue([
-      { id: 'edge-tts', name: 'Edge TTS', voices: [] },
-    ]);
     const groups = await controller.getVoices('de');
-    expect(groups.map((g) => g.id)).toEqual(['custom-tts:svc', 'readest-tts', 'edge-tts']);
+    expect(groups.map((g) => g.id)).toEqual(['custom-tts:svc', 'readest-tts']);
   });
 
   test('are hidden when unavailable (free plan, no services)', async () => {
@@ -414,7 +408,7 @@ describe('custom TTS services', () => {
     await controller.setLang('en-GB');
     expect(controller.ttsClient).toBe(custom());
     await controller.setLang('ja');
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
   });
 
   test('settings, downloads and shutdown fan out to the custom client', async () => {

@@ -99,6 +99,18 @@ export class WebSpeechClient implements TTSClient {
     this.controller = controller;
   }
 
+  // Re-read the browser's voice list fresh. Chrome on Android often
+  // delivers voices only after the first call, so a list cached at init
+  // time can stay empty forever; reading it here keeps the picker honest.
+  #refreshVoices() {
+    if (!this.#synth) return;
+    this.#voices = this.#synth.getVoices().map((voice) => {
+      const webSpeechVoice = voice as WebSpeechVoice;
+      webSpeechVoice.id = voice.voiceURI || voice.name;
+      return webSpeechVoice;
+    });
+  }
+
   async init() {
     if (!this.#synth) {
       this.initialized = false;
@@ -110,11 +122,7 @@ export class WebSpeechClient implements TTSClient {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        this.#voices = this.#synth.getVoices().map((voice) => {
-          const webSpeechVoice = voice as WebSpeechVoice;
-          webSpeechVoice.id = voice.voiceURI || voice.name;
-          return webSpeechVoice;
-        });
+        this.#refreshVoices();
         // console.log('Voices', this.#voices);
         resolve();
       };
@@ -139,6 +147,14 @@ export class WebSpeechClient implements TTSClient {
         populateVoices();
       }
     });
+    // Late voices must still reach the picker: the first populate above
+    // resolves init (and the 2s timeout keeps platforms with genuinely no
+    // voices from wedging TTSController.init()), but from here on every
+    // voiceschanged event refreshes the cached list instead of being
+    // swallowed by the settled flag.
+    if (this.#synth.onvoiceschanged !== undefined) {
+      this.#synth.onvoiceschanged = () => this.#refreshVoices();
+    }
     this.initialized = true;
     return this.initialized;
   }
@@ -223,6 +239,7 @@ export class WebSpeechClient implements TTSClient {
   }
 
   async setVoice(voiceId: string) {
+    this.#refreshVoices();
     const selectedVoice = this.#voices.find((v) => v.id === voiceId);
     if (selectedVoice) {
       this.#currentVoiceId = selectedVoice.id;
@@ -230,6 +247,7 @@ export class WebSpeechClient implements TTSClient {
   }
 
   async getAllVoices(): Promise<TTSVoice[]> {
+    this.#refreshVoices();
     const voices = this.#voices.map((voice) => {
       return {
         id: voice.id,
@@ -242,6 +260,7 @@ export class WebSpeechClient implements TTSClient {
   }
 
   async getVoices(lang: string) {
+    this.#refreshVoices();
     const locale = lang === 'en' ? getUserLocale(lang) || lang : lang;
     const isNotBlacklisted = (voice: SpeechSynthesisVoice) => {
       return (
@@ -290,7 +309,7 @@ export class WebSpeechClient implements TTSClient {
 
     const voicesGroup: TTSVoicesGroup = {
       id: 'web-speech-api',
-      name: 'Web TTS',
+      name: 'Google Device TTS',
       voices: voices.sort(TTSUtils.sortVoicesPreferLocaleFunc(locale)),
       disabled: !this.initialized || voices.length === 0,
     };

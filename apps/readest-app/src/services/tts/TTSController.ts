@@ -515,19 +515,18 @@ export class TTSController extends EventTarget {
 
   async init() {
     const availableClients = [];
-    // Started together: each can take seconds (Edge synthesizes a probe
-    // sentence, system TTS waits for its voices), and play waits on them all.
-    // Results are still taken in priority order.
+    // Started together: each can take seconds (system TTS waits for its
+    // voices), and play waits on them all. Results are still taken in
+    // priority order.
+    // Our Reader fork: Edge TTS is removed from the voice picker (it did
+    // not work on the web app), so its client is never probed or listed
+    // here. The EdgeTTSClient files stay on disk, unused.
     const readestReady = withinEngineTimeout(this.ttsReadestClient.init(), false);
     const customReady = withinEngineTimeout(this.ttsCustomClient.init(), false);
-    const edgeReady = withinEngineTimeout(this.ttsEdgeClient.init(), false);
     const nativeReady = this.ttsNativeClient
       ? withinEngineTimeout(this.ttsNativeClient.init(), false)
       : undefined;
     const webReady = withinEngineTimeout(this.ttsWebClient.init(), false);
-    if (await edgeReady) {
-      availableClients.push(this.ttsEdgeClient);
-    }
     if (this.ttsNativeClient && (await nativeReady)) {
       availableClients.push(this.ttsNativeClient);
       this.ttsNativeVoices = await withinEngineTimeout(this.ttsNativeClient.getAllVoices(), []);
@@ -555,13 +554,11 @@ export class TTSController extends EventTarget {
       }
     }
     // An engine whose init failed or timed out has no voices to list.
-    [this.ttsWebVoices, this.ttsEdgeVoices, this.ttsReadestVoices, this.ttsCustomVoices] =
-      await Promise.all([
-        withinEngineTimeout(this.ttsWebClient.getAllVoices(), []),
-        withinEngineTimeout(this.ttsEdgeClient.getAllVoices(), []),
-        readestOk ? withinEngineTimeout(this.ttsReadestClient.getAllVoices(), []) : [],
-        customOk ? this.ttsCustomClient.getAllVoices() : [],
-      ]);
+    [this.ttsWebVoices, this.ttsReadestVoices, this.ttsCustomVoices] = await Promise.all([
+      withinEngineTimeout(this.ttsWebClient.getAllVoices(), []),
+      readestOk ? withinEngineTimeout(this.ttsReadestClient.getAllVoices(), []) : [],
+      customOk ? this.ttsCustomClient.getAllVoices() : [],
+    ]);
 
     // A book that ships its own narration should be read by its narrator, not
     // synthesized — that is the whole point of having the recording. The
@@ -2295,7 +2292,6 @@ export class TTSController extends EventTarget {
 
   async getVoices(lang: string) {
     const ttsWebVoices = await this.ttsWebClient.getVoices(lang);
-    const ttsEdgeVoices = await this.ttsEdgeClient.getVoices(lang);
     const ttsNativeVoices = (await this.ttsNativeClient?.getVoices(lang)) ?? [];
     // Listed for every reader, the voices their plan lacks greyed out; hidden
     // only when there is no catalog (kill switch, offline).
@@ -2322,7 +2318,6 @@ export class TTSController extends EventTarget {
       ...narrationVoices,
       ...ttsCustomVoices,
       ...ttsReadestVoices,
-      ...ttsEdgeVoices,
       ...ttsNativeVoices,
       ...ttsWebVoices,
     ];
@@ -2364,9 +2359,10 @@ export class TTSController extends EventTarget {
       voiceId !== '' &&
       this.ttsReadestClient.initialized &&
       this.ttsReadestVoices.some((voice) => voice.id === voiceId && !voice.disabled);
-    const useEdgeTTS = !!this.ttsEdgeVoices.find(
-      (voice) => (voiceId === '' || voice.id === voiceId) && !voice.disabled,
-    );
+    // Our Reader fork: Edge TTS is removed from the picker, so there is no
+    // Edge branch here. A remembered Edge voice id matches nothing above
+    // and falls through to the device client below, which is the safe
+    // fallback — playback never lands on a dead engine.
     const useNativeTTS = !!this.ttsNativeVoices.find(
       (voice) => (voiceId === '' || voice.id === voiceId) && !voice.disabled,
     );
@@ -2375,9 +2371,6 @@ export class TTSController extends EventTarget {
       await this.ttsClient.setRate(this.ttsRate);
     } else if (useReadestTTS) {
       this.ttsClient = this.ttsReadestClient;
-      await this.ttsClient.setRate(this.ttsRate);
-    } else if (useEdgeTTS) {
-      this.ttsClient = this.ttsEdgeClient;
       await this.ttsClient.setRate(this.ttsRate);
     } else if (useNativeTTS) {
       if (!this.ttsNativeClient) {

@@ -46,6 +46,11 @@ const CustomTTSServices: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         onBack={onBack}
       />
       <div className='space-y-2'>
+        <p className='text-base-content/70 px-4 text-sm'>
+          {_(
+            'To add a service: get an OpenAI-compatible speech service (for example OpenAI, or a self-hosted Kokoro server), then tap Add TTS Service below and fill in Name, Base URL (for example https://api.openai.com/v1), API Key (leave empty for a local server), and Model. Its voices then appear in Read Aloud → Select Voice for every book.',
+          )}
+        </p>
         {services.length > 0 && (
           <BoxedList cardClassName='overflow-hidden'>
             {services.map((s) => (
