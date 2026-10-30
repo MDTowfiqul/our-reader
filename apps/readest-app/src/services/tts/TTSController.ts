@@ -274,6 +274,7 @@ export class TTSController extends EventTarget {
 
   ttsLang: string = '';
   ttsRate: number = 1.0;
+  ttsPitch: number = 1.0;
   ttsClient: TTSClient;
   ttsWebClient: TTSClient;
   ttsEdgeClient: EdgeTTSClient;
@@ -2288,6 +2289,13 @@ export class TTSController extends EventTarget {
     this.ttsRate = rate;
     this.#sectionTimeline?.setRate(rate);
     await this.ttsClient.setRate(this.ttsRate);
+  }
+
+  async setPitch(pitch: number) {
+    // No timeline or state-machine effect: pitch only shapes the next
+    // utterance (device voices) or the next synthesis (buffered engines).
+    this.ttsPitch = pitch;
+    await this.ttsClient.setPitch(this.ttsPitch);
   }
 
   async getVoices(lang: string) {

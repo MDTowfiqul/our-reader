@@ -1085,6 +1085,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
 
           ttsController.setLang(lang);
           ttsController.setRate(viewSettings.ttsRate);
+          ttsController.setPitch(viewSettings.ttsPitch ?? 1.0);
           ttsController.setSentenceGap(viewSettings.ttsSentenceGap ?? DEFAULT_SENTENCE_GAP_SEC);
           ttsController.setParagraphGap(viewSettings.ttsParagraphGap ?? DEFAULT_PARAGRAPH_GAP_SEC);
           // Narrating a selection is an ordinary session started at that point,

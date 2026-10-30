@@ -26,6 +26,7 @@ import {
   SettingsSwitchRow,
 } from './primitives';
 import CustomTTSServices from './CustomTTSServices';
+import DeviceTTSSettings from './DeviceTTSSettings';
 import TTSHighlightStyleEditor, { TTSHighlightStyle } from './theme/TTSHighlightStyleEditor';
 
 const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }) => {
@@ -193,6 +194,8 @@ const TTSPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset }
           data-setting-id='settings.tts.customServices'
         />
       </BoxedList>
+
+      <DeviceTTSSettings bookKey={bookKey} />
 
       <TTSHighlightStyleEditor
         granularity={ttsHighlightGranularity}

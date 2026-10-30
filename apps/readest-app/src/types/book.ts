@@ -427,6 +427,10 @@ export interface ViewConfig {
 
 export interface TTSConfig {
   ttsRate: number;
+  // Read Aloud pitch for device (Web Speech) voices, [0 .. 2]. Buffered
+  // engines apply pitch at synthesis; the device client applies it to the
+  // next utterance (no live pitch change mid-utterance).
+  ttsPitch: number;
   ttsSentenceGap: number;
   ttsParagraphGap: number;
   ttsVoice: string;
