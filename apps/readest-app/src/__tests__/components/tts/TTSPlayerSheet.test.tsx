@@ -699,40 +699,11 @@ describe('TTSPlayerSheet', () => {
     ...over,
   });
 
-  test('offline audio row: a premium user has no badge and opens the chapters view', () => {
-    mockQuota.userProfilePlan = 'pro';
+  test('offline audio row is not rendered (removed from the player)', () => {
     const props = makeProps({ downloads: makeDownloads() });
     render(<TTSPlayerSheet {...props} />);
-    const row = screen.getByLabelText('Offline Audio');
-    expect(screen.queryByText('Premium')).toBeNull();
-    expect(screen.getByText('1 of 1 downloaded')).toBeTruthy();
-    fireEvent.click(row);
-    expect(screen.getByText('chapters-view')).toBeTruthy();
-    expect(routerPush).not.toHaveBeenCalled();
-  });
-
-  test('offline audio row: a free user sees a Premium badge and is routed to upgrade', () => {
-    mockQuota.userProfilePlan = 'free';
-    const props = makeProps({ downloads: makeDownloads() });
-    render(<TTSPlayerSheet {...props} />);
-    expect(screen.getByText('Premium')).toBeTruthy();
-    expect(screen.getByText('Download chapters for offline playback')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Offline Audio'));
-    expect(routerPush).toHaveBeenCalledWith(expect.stringMatching(/^\/user\?redirect=/));
-    expect(props.onClose).toHaveBeenCalled();
-    // The premium chapters view must not open for a free user.
-    expect(screen.queryByText('chapters-view')).toBeNull();
-  });
-
-  test('offline audio row: a signed-out user is routed to sign-in', () => {
-    mockAuth.user = null;
-    mockQuota.userProfilePlan = undefined;
-    const props = makeProps({ downloads: makeDownloads() });
-    render(<TTSPlayerSheet {...props} />);
-    expect(screen.getByText('Premium')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Offline Audio'));
-    expect(routerPush).toHaveBeenCalledWith(expect.stringContaining('/auth?redirect='));
-    expect(screen.queryByText('chapters-view')).toBeNull();
+    expect(screen.queryByLabelText('Offline Audio')).toBeNull();
+    expect(screen.queryByText('Download chapters for offline playback')).toBeNull();
   });
 
   // Books with recorded narration (EPUB 3 Media Overlays) surface the narrator
