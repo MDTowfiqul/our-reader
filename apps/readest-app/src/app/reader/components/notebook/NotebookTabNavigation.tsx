@@ -6,17 +6,21 @@ import { WandSparkles } from 'lucide-react';
 import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
-import { NotebookTab } from '@/store/notebookStore';
+import { NotebookTab, PanelMode } from '@/store/notebookStore';
 import { hasAnyAIKey } from '@/services/ai/customProviders';
 
 interface NotebookTabNavigationProps {
   activeTab: NotebookTab;
   onTabChange: (tab: NotebookTab) => void;
+  /** The bottom bar shows only its own panel's tabs: Notes for the
+      Notebook panel, AI + Summary for the AI panel. */
+  mode?: PanelMode;
 }
 
 const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
   activeTab,
   onTabChange,
+  mode = 'notebook',
 }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
@@ -27,11 +31,14 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
 
   // Summary needs only an OpenRouter key, not the AI chat toggle; the
   // panel itself explains the missing key when there is none.
-  const tabs: NotebookTab[] = aiEnabled
-    ? ['notes', 'ai', 'summary']
-    : hasSummaryKey
-      ? ['notes', 'summary']
-      : [];
+  const tabs: NotebookTab[] =
+    mode === 'notebook'
+      ? ['notes']
+      : aiEnabled
+        ? ['ai', 'summary']
+        : hasSummaryKey
+          ? ['summary']
+          : [];
 
   if (tabs.length === 0) return null;
 

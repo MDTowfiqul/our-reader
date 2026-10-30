@@ -9,15 +9,23 @@ import { useBookProgress } from '@/store/readerProgressStore';
 import { extractTextFromDocument } from '@/services/ai/utils/chunker';
 import { SUMMARY_DISCLAIMER } from '@/services/ai/summaryService';
 import { chatWithAI, hasAnyAIKey } from '@/services/ai/customProviders';
+import {
+  formatPassages,
+  getBookChapters,
+  retrievePassages,
+  type TocEntry,
+} from '@/services/ai/bookRetrieval';
 import { Button } from '@/components/ui/button';
 import { Loader2Icon } from 'lucide-react';
 
 /**
- * Chat with the book (Notebook → AI tab, when a custom provider key is
- * set). The AI answers AS the book itself, grounded only in the current
- * chapter's text: anything not in the book gets a plain "not in the book"
- * answer instead of an invented one. The user's custom instruction from
- * Settings → AI, when set, is prepended by the shared chat route.
+ * Chat with the book (AI panel, when a provider key is set). The AI
+ * answers AS the book itself, grounded in passages retrieved from
+ * ANYWHERE in the book — not just the chapter being read. The chapter
+ * being read is always included, and the model is told to name the
+ * chapter it answers from when it can, and to say plainly when something
+ * is not in the book. The user's custom instruction from the AI panel,
+ * when set, is prepended by the shared chat route.
  */
 
 interface BookChatProps {
@@ -29,8 +37,6 @@ type SectionLike = {
 };
 
 type ChatTurn = { role: 'user' | 'assistant'; content: string };
-
-const CHAPTER_CHARS = 20000;
 
 const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
   const _ = useTranslation();
@@ -49,14 +55,16 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
   const aiSettings = settings?.aiSettings;
   const hasKey = !!aiSettings && hasAnyAIKey(aiSettings);
 
-  const getChapterText = useCallback(async (): Promise<string> => {
-    const sections = (bookData?.bookDoc?.sections || []) as unknown as SectionLike[];
-    const sectionIndex = progress?.section?.current ?? 0;
-    const section = sections[sectionIndex];
-    if (!section) return '';
-    const doc = await section.createDocument();
-    return extractTextFromDocument(doc);
-  }, [bookData?.bookDoc, progress?.section?.current]);
+  const loadSectionText = useCallback(
+    async (sectionIndex: number): Promise<string> => {
+      const sections = (bookData?.bookDoc?.sections || []) as unknown as SectionLike[];
+      const section = sections[sectionIndex];
+      if (!section) return '';
+      const doc = await section.createDocument();
+      return extractTextFromDocument(doc);
+    },
+    [bookData?.bookDoc],
+  );
 
   const handleSend = useCallback(async () => {
     const question = input.trim();
@@ -67,18 +75,26 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
     const nextMessages: ChatTurn[] = [...messages, { role: 'user' as const, content: question }];
     setMessages(nextMessages);
     try {
-      const chapterText = (await getChapterText()).slice(0, CHAPTER_CHARS);
-      if (!chapterText) {
-        setError(_('Could not read the current chapter.'));
+      const sections = (bookData?.bookDoc?.sections || []) as unknown as SectionLike[];
+      const toc = (bookData?.bookDoc?.toc || []) as TocEntry[];
+      const currentSection = progress?.section?.current ?? 0;
+      // Chapter texts are cached per book, so repeat questions do not
+      // re-extract the whole book.
+      const chapters = await getBookChapters(bookKey, sections.length, toc, loadSectionText);
+      if (chapters.length === 0) {
+        setError(_('Could not read this book.'));
         setMessages(messages);
         return;
       }
+      const passages = retrievePassages(chapters, currentSection, question);
       const system =
         `You ARE the book "${bookTitle}"${authorName ? ` by ${authorName}` : ''}. ` +
-        'Answer the reader as the book itself, using ONLY the chapter text below. ' +
-        'If the answer is not in the book, say plainly that it is not in the book — ' +
-        'never invent details, and never use outside knowledge of the book. ' +
-        `Chapter text:\n\n${chapterText}`;
+        'Answer the reader as the book itself, using ONLY the passages below, ' +
+        'which may come from anywhere in the book. When you can, name the ' +
+        'chapter your answer comes from. If the answer is not in the book, ' +
+        'say plainly that it is not in the book — never invent details, ' +
+        'and never use outside knowledge of the book. ' +
+        `Passages:\n\n${formatPassages(passages)}`;
       const reply = await chatWithAI(aiSettings, system, nextMessages);
       setMessages([...nextMessages, { role: 'assistant', content: reply }]);
     } catch (e) {
@@ -87,7 +103,19 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [input, aiSettings, isLoading, messages, getChapterText, bookTitle, authorName, _]);
+  }, [
+    input,
+    aiSettings,
+    isLoading,
+    messages,
+    bookData?.bookDoc,
+    progress?.section?.current,
+    loadSectionText,
+    bookKey,
+    bookTitle,
+    authorName,
+    _,
+  ]);
 
   if (!hasKey) {
     return (
@@ -103,7 +131,7 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
   return (
     <div className='flex h-full flex-col gap-3 overflow-y-auto p-4'>
       <p className='text-muted-foreground text-xs'>
-        {_('Chatting with this book — answers come from the current chapter only.')}
+        {_('Chatting with this book — answers come from anywhere in the book.')}
       </p>
       <div className='flex flex-1 flex-col gap-3'>
         {messages.map((m, i) => (

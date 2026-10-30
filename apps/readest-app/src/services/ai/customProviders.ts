@@ -142,15 +142,19 @@ export async function chatWithCustomProvider(
  * Route one AI call: the user's selected custom provider when it has a
  * key, otherwise the existing OpenRouter path (unchanged). Throws
  * OPENROUTER_KEY_MISSING when neither key exists, matching summaryService.
+ * The user's custom system instruction, when set, frames every call here
+ * — exactly once, for summaries and book chat alike.
  */
 export async function chatWithAI(
   settings: AISettings,
   system: string,
   messages: ChatMessage[],
 ): Promise<string> {
+  const custom = (settings.customSystemPrompt || '').trim();
+  const fullSystem = custom ? `${custom}\n\n${system}` : system;
   const active = getActiveCustomProvider(settings);
   if (active && active.enabled) {
-    return chatWithCustomProvider(active, system, messages);
+    return chatWithCustomProvider(active, fullSystem, messages);
   }
   if (!settings.openrouterApiKey) {
     throw new Error('OPENROUTER_KEY_MISSING');
@@ -159,6 +163,6 @@ export async function chatWithAI(
   const prompt = messages
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
     .join('\n\n');
-  const { text } = await generateText({ model: provider.getModel(), system, prompt });
+  const { text } = await generateText({ model: provider.getModel(), system: fullSystem, prompt });
   return text.trim();
 }

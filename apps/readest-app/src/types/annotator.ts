@@ -6,6 +6,7 @@ export type AnnotationToolType =
   | 'search'
   | 'dictionary'
   | 'translate'
+  | 'summarise'
   | 'tts'
   | 'proofread'
   | 'share'

@@ -4,9 +4,10 @@ import type { AISettings } from './types';
 /**
  * Our Reader AI summaries (Stage 2a). On-demand only: nothing here ever
  * bulk-summarises a library. The caller supplies the text (one chapter, a
- * selection, or passages read so far); this service only calls the model
- * and caches the result. The user's OpenRouter key comes from AI settings
- * entered in-app — it is never hardcoded and never sent anywhere else.
+ * selection, or per-chapter summaries for a whole book); this service only
+ * calls the model and caches the result. The user's provider key comes
+ * from AI settings entered in-app — it is never hardcoded and never sent
+ * anywhere else.
  *
  * No native Gemini provider exists in this pass; Gemini models are
  * reachable through OpenRouter with the user's own key.
@@ -16,13 +17,7 @@ export const SUMMARY_DISCLAIMER =
   'AI summary — may contain mistakes, not a religious ruling or authoritative interpretation';
 
 export type SummaryLanguage = 'book' | 'bn' | 'en';
-export type SummaryKind = 'chapter' | 'book' | 'selection' | 'so-far';
-
-export interface SummaryPassage {
-  chapterTitle: string;
-  page: number;
-  text: string;
-}
+export type SummaryKind = 'chapter' | 'book' | 'selection';
 
 export interface SummaryRequest {
   bookHash: string;
@@ -37,17 +32,11 @@ export interface SummaryRequest {
   sectionIndex?: number;
   /** Full text for a chapter or a selection. */
   text?: string;
-  /** Passages already read, for "what happened so far". */
-  passages?: SummaryPassage[];
-  /** Current page, for spoiler-safe "what happened so far". */
-  currentPage?: number;
 }
 
 const CACHE_KEY = 'our-reader-summaries';
 /** Max characters per model call when chunking a long chapter. */
 const CHUNK_CHARS = 6000;
-/** Max characters of read-so-far passages sent in one call. */
-const SO_FAR_CHARS = 20000;
 
 function languageInstruction(language: SummaryLanguage): string {
   switch (language) {
@@ -111,10 +100,8 @@ function splitText(text: string, size: number): string[] {
 }
 
 async function callModel(settings: AISettings, system: string, prompt: string): Promise<string> {
-  // The user's custom system instruction, when set, frames every call.
-  const custom = (settings.customSystemPrompt || '').trim();
-  const fullSystem = custom ? `${custom}\n\n${system}` : system;
-  return chatWithAI(settings, fullSystem, [{ role: 'user', content: prompt }]);
+  // The custom system instruction is prepended inside chatWithAI, once.
+  return chatWithAI(settings, system, [{ role: 'user', content: prompt }]);
 }
 
 /** Summarise one passage of text (a chapter, or a user selection). */
@@ -174,31 +161,6 @@ export async function summarizeBookFromChapters(
     settings,
     `You combine chapter summaries into one whole-book summary. ${languageInstruction(req.language)} Do not invent details beyond the chapter summaries.`,
     `Book: "${req.bookTitle}"${req.authorName ? ` by ${req.authorName}` : ''}\n\n${chapterSummaries.map((s, i) => `Chapter ${i + 1}:\n${s}`).join('\n\n')}`,
-  );
-  writeCache(key, summary);
-  return summary;
-}
-
-/**
- * "What happened so far": only passages up to the current page are used
- * (the existing spoiler rule from prompts.ts, applied here without the
- * chat backend). Passages beyond the current page are dropped, never sent.
- */
-export async function summarizeSoFar(req: SummaryRequest, settings: AISettings): Promise<string> {
-  const currentPage = req.currentPage ?? 0;
-  const allowed = (req.passages || [])
-    .filter((p) => currentPage <= 0 || p.page <= currentPage)
-    .map((p) => `[${p.chapterTitle}, Page ${p.page}]\n${p.text}`)
-    .join('\n\n');
-  if (!allowed.trim()) throw new Error('No passages read so far to summarise');
-  const trimmed = allowed.slice(0, SO_FAR_CHARS);
-  const key = cacheKey(req, hashText(trimmed), summaryRouteId(settings));
-  const cached = readCache()[key];
-  if (cached) return cached;
-  const summary = await callModel(
-    settings,
-    `You are a reading companion summarising only what the reader has read so far. ${languageInstruction(req.language)} You may ONLY use the passages below, which end at page ${currentPage}. NEVER discuss, hint at, or reveal anything beyond those passages, and never use outside knowledge of this book.`,
-    `Book: "${req.bookTitle}"${req.authorName ? ` by ${req.authorName}` : ''}\n\n<BOOK_PASSAGES page_limit="${currentPage}">\n${trimmed}\n</BOOK_PASSAGES>`,
   );
   writeCache(key, summary);
   return summary;

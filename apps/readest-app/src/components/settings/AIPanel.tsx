@@ -476,6 +476,13 @@ const AIPanel: React.FC = () => {
 
   const disabledSection = !enabled ? 'opacity-50 pointer-events-none select-none' : '';
 
+  // Settings → AI is providers-only by design: the legacy sections below
+  // (provider radios, Ollama / Gateway / OpenRouter configuration, Reedy,
+  // Connection) and the Custom instruction box are hidden from rendering
+  // with {false && ...}, NOT deleted — their state and the OpenRouter
+  // fallback path stay intact, and the custom instruction now lives in
+  // the AI panel (CustomInstructionField). A user can still add OpenRouter
+  // as an OpenAI-compatible custom provider.
   return (
     <div className='my-4 w-full space-y-6'>
       <BoxedList title={_('AI Assistant')}>
@@ -486,40 +493,42 @@ const AIPanel: React.FC = () => {
         />
       </BoxedList>
 
-      <BoxedList title={_('Provider')} className={disabledSection}>
-        <SettingsRow label={_('Ollama (Local)')} asLabel>
-          <input
-            type='radio'
-            name='ai-provider'
-            className='radio'
-            checked={provider === 'ollama'}
-            onChange={() => setProvider('ollama')}
-            disabled={!enabled}
-          />
-        </SettingsRow>
-        <SettingsRow label={_('AI Gateway (Cloud)')} asLabel>
-          <input
-            type='radio'
-            name='ai-provider'
-            className='radio'
-            checked={provider === 'ai-gateway'}
-            onChange={() => setProvider('ai-gateway')}
-            disabled={!enabled}
-          />
-        </SettingsRow>
-        <SettingsRow label={_('OpenAI Compatible')} asLabel>
-          <input
-            type='radio'
-            name='ai-provider'
-            className='radio'
-            checked={provider === 'openrouter'}
-            onChange={() => setProvider('openrouter')}
-            disabled={!enabled}
-          />
-        </SettingsRow>
-      </BoxedList>
+      {false && (
+        <BoxedList title={_('Provider')} className={disabledSection}>
+          <SettingsRow label={_('Ollama (Local)')} asLabel>
+            <input
+              type='radio'
+              name='ai-provider'
+              className='radio'
+              checked={provider === 'ollama'}
+              onChange={() => setProvider('ollama')}
+              disabled={!enabled}
+            />
+          </SettingsRow>
+          <SettingsRow label={_('AI Gateway (Cloud)')} asLabel>
+            <input
+              type='radio'
+              name='ai-provider'
+              className='radio'
+              checked={provider === 'ai-gateway'}
+              onChange={() => setProvider('ai-gateway')}
+              disabled={!enabled}
+            />
+          </SettingsRow>
+          <SettingsRow label={_('OpenAI Compatible')} asLabel>
+            <input
+              type='radio'
+              name='ai-provider'
+              className='radio'
+              checked={provider === 'openrouter'}
+              onChange={() => setProvider('openrouter')}
+              disabled={!enabled}
+            />
+          </SettingsRow>
+        </BoxedList>
+      )}
 
-      {provider === 'ollama' && (
+      {false && provider === 'ollama' && (
         <BoxedList title={_('Ollama Configuration')} className={disabledSection}>
           {/* Stacked-content rows: label-on-top, input below — used when the
               control is too wide to fit alongside the label (full-width text
@@ -588,7 +597,7 @@ const AIPanel: React.FC = () => {
         </BoxedList>
       )}
 
-      {provider === 'ai-gateway' && (
+      {false && provider === 'ai-gateway' && (
         <BoxedList
           title={_('AI Gateway Configuration')}
           description={_(
@@ -665,8 +674,8 @@ const AIPanel: React.FC = () => {
               {customModelStatus === 'valid' && customModelPricing && (
                 <span className='text-success flex items-center gap-1 text-sm'>
                   <PiCheckCircle />
-                  {_('Model available')} · ${customModelPricing.input}/M in, $
-                  {customModelPricing.output}/M out
+                  {_('Model available')} · ${customModelPricing?.input}/M in, $
+                  {customModelPricing?.output}/M out
                 </span>
               )}
               {customModelStatus === 'invalid' && (
@@ -677,7 +686,7 @@ const AIPanel: React.FC = () => {
         </BoxedList>
       )}
 
-      {provider === 'openrouter' && (
+      {false && provider === 'openrouter' && (
         <BoxedList
           title={_('OpenAI Compatible Configuration')}
           description={_(
@@ -968,126 +977,132 @@ const AIPanel: React.FC = () => {
         )}
       </BoxedList>
 
-      <BoxedList
-        title={_('Custom instruction')}
-        description={_(
-          'An instruction of your own that is added to every AI summary and book-chat reply, e.g. “Answer in simple Bengali”. Leave it empty for the default behaviour.',
-        )}
-        className={disabledSection}
-      >
-        <div className='flex flex-col gap-2 py-3 pe-4'>
-          <textarea
-            className='textarea textarea-sm eink-bordered w-full'
-            rows={3}
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            disabled={!enabled}
-            placeholder={_('Optional custom instruction for the AI…')}
+      {false && (
+        <BoxedList
+          title={_('Custom instruction')}
+          description={_(
+            'An instruction of your own that is added to every AI summary and book-chat reply, e.g. “Answer in simple Bengali”. Leave it empty for the default behaviour.',
+          )}
+          className={disabledSection}
+        >
+          <div className='flex flex-col gap-2 py-3 pe-4'>
+            <textarea
+              className='textarea textarea-sm eink-bordered w-full'
+              rows={3}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              disabled={!enabled}
+              placeholder={_('Optional custom instruction for the AI…')}
+            />
+            <div className='flex justify-end'>
+              <button
+                className='btn btn-ghost btn-sm eink-bordered'
+                onClick={() => setCustomPrompt('')}
+                disabled={!enabled || !customPrompt}
+              >
+                {_('Reset to default')}
+              </button>
+            </div>
+          </div>
+        </BoxedList>
+      )}
+
+      {false && (
+        <BoxedList
+          title={_('Reedy Retrieval (Beta)')}
+          className={disabledSection}
+          description={
+            isTauriAppPlatform()
+              ? _(
+                  'Uses Turso vector search + CFI-anchored citations. The model decides when to look up passages instead of getting them stuffed into the system prompt.',
+                )
+              : _('Reedy is desktop-only in this beta. Use the Our Reader desktop app to try it.')
+          }
+        >
+          <SettingsSwitchRow
+            label={_('Use Reedy retrieval')}
+            checked={reedyEnabled}
+            disabled={!enabled || !isTauriAppPlatform()}
+            onChange={() => {
+              const next = !reedyEnabled;
+              setReedyEnabled(next);
+              saveAiSetting('reedy', {
+                enabled: next,
+                runtime: reedyAgentRuntime ? 'agent' : 'mvp',
+              });
+            }}
           />
-          <div className='flex justify-end'>
+          <SettingsSwitchRow
+            label={_('Use agent runtime (experimental)')}
+            checked={reedyAgentRuntime}
+            disabled={!enabled || !reedyEnabled || !isTauriAppPlatform()}
+            onChange={() => {
+              const next = !reedyAgentRuntime;
+              setReedyAgentRuntime(next);
+              saveAiSetting('reedy', {
+                enabled: reedyEnabled,
+                runtime: next ? 'agent' : 'mvp',
+              });
+            }}
+          />
+          <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
+            <div className='flex min-w-0 flex-col gap-0.5'>
+              <SettingLabel>{_('Send Reedy feedback')}</SettingLabel>
+            </div>
             <button
-              className='btn btn-ghost btn-sm eink-bordered'
-              onClick={() => setCustomPrompt('')}
-              disabled={!enabled || !customPrompt}
+              className='btn btn-outline btn-sm'
+              disabled={!enabled || !isTauriAppPlatform() || !appService}
+              onClick={async () => {
+                if (!appService) return;
+                try {
+                  const bundle = await exportReedyMetricsBundle(appService);
+                  const blob = new Blob([bundle], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `reedy-feedback-${new Date().toISOString().slice(0, 10)}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error('[Reedy] feedback export failed', err);
+                }
+              }}
             >
-              {_('Reset to default')}
+              {_('Download')}
             </button>
           </div>
-        </div>
-      </BoxedList>
+        </BoxedList>
+      )}
 
-      <BoxedList
-        title={_('Reedy Retrieval (Beta)')}
-        className={disabledSection}
-        description={
-          isTauriAppPlatform()
-            ? _(
-                'Uses Turso vector search + CFI-anchored citations. The model decides when to look up passages instead of getting them stuffed into the system prompt.',
-              )
-            : _('Reedy is desktop-only in this beta. Use the Our Reader desktop app to try it.')
-        }
-      >
-        <SettingsSwitchRow
-          label={_('Use Reedy retrieval')}
-          checked={reedyEnabled}
-          disabled={!enabled || !isTauriAppPlatform()}
-          onChange={() => {
-            const next = !reedyEnabled;
-            setReedyEnabled(next);
-            saveAiSetting('reedy', {
-              enabled: next,
-              runtime: reedyAgentRuntime ? 'agent' : 'mvp',
-            });
-          }}
-        />
-        <SettingsSwitchRow
-          label={_('Use agent runtime (experimental)')}
-          checked={reedyAgentRuntime}
-          disabled={!enabled || !reedyEnabled || !isTauriAppPlatform()}
-          onChange={() => {
-            const next = !reedyAgentRuntime;
-            setReedyAgentRuntime(next);
-            saveAiSetting('reedy', {
-              enabled: reedyEnabled,
-              runtime: next ? 'agent' : 'mvp',
-            });
-          }}
-        />
-        <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
-          <div className='flex min-w-0 flex-col gap-0.5'>
-            <SettingLabel>{_('Send Reedy feedback')}</SettingLabel>
+      {false && (
+        <BoxedList title={_('Connection')} className={disabledSection}>
+          <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
+            <button
+              className='btn btn-outline btn-sm'
+              onClick={handleTestConnection}
+              disabled={!enabled || connectionStatus === 'testing'}
+            >
+              {_('Test Connection')}
+            </button>
+            <div>
+              {connectionStatus === 'success' && (
+                <span className='text-success flex items-center gap-1 text-sm'>
+                  <PiCheckCircle className='size-4 shrink-0' />
+                  {_('Connected')}
+                </span>
+              )}
+              {connectionStatus === 'error' && (
+                <span className='text-error flex items-center gap-1 text-sm'>
+                  <PiWarningCircle className='size-4 shrink-0' />
+                  {errorMessage || _('Failed')}
+                </span>
+              )}
+            </div>
           </div>
-          <button
-            className='btn btn-outline btn-sm'
-            disabled={!enabled || !isTauriAppPlatform() || !appService}
-            onClick={async () => {
-              if (!appService) return;
-              try {
-                const bundle = await exportReedyMetricsBundle(appService);
-                const blob = new Blob([bundle], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `reedy-feedback-${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              } catch (err) {
-                console.error('[Reedy] feedback export failed', err);
-              }
-            }}
-          >
-            {_('Download')}
-          </button>
-        </div>
-      </BoxedList>
-
-      <BoxedList title={_('Connection')} className={disabledSection}>
-        <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
-          <button
-            className='btn btn-outline btn-sm'
-            onClick={handleTestConnection}
-            disabled={!enabled || connectionStatus === 'testing'}
-          >
-            {_('Test Connection')}
-          </button>
-          <div>
-            {connectionStatus === 'success' && (
-              <span className='text-success flex items-center gap-1 text-sm'>
-                <PiCheckCircle className='size-4 shrink-0' />
-                {_('Connected')}
-              </span>
-            )}
-            {connectionStatus === 'error' && (
-              <span className='text-error flex items-center gap-1 text-sm'>
-                <PiWarningCircle className='size-4 shrink-0' />
-                {errorMessage || _('Failed')}
-              </span>
-            )}
-          </div>
-        </div>
-      </BoxedList>
+        </BoxedList>
+      )}
     </div>
   );
 };

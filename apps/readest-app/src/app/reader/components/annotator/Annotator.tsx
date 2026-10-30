@@ -67,6 +67,7 @@ import { AnnotationLinkType, buildAnnotationUrl } from '@/utils/deeplink';
 import { DEFAULT_NOTE_EXPORT_CONFIG } from '@/services/constants';
 import { canShareText, shareSelectedText } from '@/utils/share';
 import {
+  PRE_SUMMARISE_DEFAULT_ANNOTATION_TOOLBAR_ITEMS,
   getToolbarToolTypes,
   shouldShowHighlightOptions,
   supportsProofread,
@@ -99,6 +100,7 @@ import DictionaryPopup from './DictionaryPopup';
 import DictionarySheet from './DictionarySheet';
 import NoteEditorSheet from './NoteEditorSheet';
 import TranslatorPopup from './TranslatorPopup';
+import SummaryPopup from './SummaryPopup';
 import useShortcuts from '@/hooks/useShortcuts';
 import ProofreadPopup from './ProofreadPopup';
 import { setProofreadRulesVisibility } from '@/app/reader/components/ProofreadRules';
@@ -158,7 +160,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   const getView = useReaderStore((s) => s.getView);
   const getViewsById = useReaderStore((s) => s.getViewsById);
   const getViewSettings = useReaderStore((s) => s.getViewSettings);
-  const { setNotebookVisible, setNotebookActiveTab } = useNotebookStore();
+  const { setNotebookVisible, setNotebookActiveTab, setPanelMode } = useNotebookStore();
   const { clearBooknotesNav, isSideBarVisible } = useSidebarStore();
   const { listenToNativeTouchEvents } = useDeviceControlStore();
   const { loadCustomDictionaries } = useCustomDictionaryStore();
@@ -200,6 +202,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   const [showDictionaryPopup, setShowDictionaryPopup] = useState(false);
   const [showDeepLPopup, setShowDeepLPopup] = useState(false);
   const [showProofreadPopup, setShowProofreadPopup] = useState(false);
+  const [showSummarisePopup, setShowSummarisePopup] = useState(false);
   const [trianglePosition, setTrianglePosition] = useState<Position>();
   const [annotPopupPosition, setAnnotPopupPosition] = useState<Position>();
   // The side of the tapped word the footnote popup took, when one is open: a
@@ -266,14 +269,22 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   // cleared without the dismiss that closes them: the instant highlight quick
   // action clears it on a tap (#6419). Close them in the same render, before
   // they can render without text.
-  if (!selection && (showDictionaryPopup || showDeepLPopup || showProofreadPopup)) {
+  if (
+    !selection &&
+    (showDictionaryPopup || showDeepLPopup || showProofreadPopup || showSummarisePopup)
+  ) {
     setShowDictionaryPopup(false);
     setShowDeepLPopup(false);
     setShowProofreadPopup(false);
+    setShowSummarisePopup(false);
   }
 
   const showingPopup =
-    showAnnotPopup || showDictionaryPopup || showDeepLPopup || showProofreadPopup;
+    showAnnotPopup ||
+    showDictionaryPopup ||
+    showDeepLPopup ||
+    showProofreadPopup ||
+    showSummarisePopup;
 
   const popupPadding = useResponsiveSize(10);
   const trianglePadding = popupPadding * 2 + 6;
@@ -308,23 +319,37 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   const annotPopupMaxWidth = Math.min(useResponsiveSize(300), maxWidth);
   const annotPopupToolSize = useResponsiveSize(44);
   const toolbarToolTypes = getToolbarToolTypes(viewSettings.annotationToolbarItems, canShare);
-  const highlightOptionsGap = toolbarToolTypes.length <= 4 ? 4 : 8;
+  // 'summarise' is new: append it for fresh installs (the default already
+  // includes it) and for stored lists that are just the untouched old
+  // default. A list the user deliberately customised is left alone —
+  // 'summarise' stays available from Customize Toolbar's Available tray.
+  const visibleToolTypes: AnnotationToolType[] =
+    toolbarToolTypes.includes('summarise') ||
+    !(
+      toolbarToolTypes.length === PRE_SUMMARISE_DEFAULT_ANNOTATION_TOOLBAR_ITEMS.length &&
+      toolbarToolTypes.every(
+        (type, i) => type === PRE_SUMMARISE_DEFAULT_ANNOTATION_TOOLBAR_ITEMS[i],
+      )
+    )
+      ? toolbarToolTypes
+      : [...toolbarToolTypes, 'summarise'];
+  const highlightOptionsGap = visibleToolTypes.length <= 4 ? 4 : 8;
   // Three 30px styles, a four- or five-color pill (100px or 122px), and three gaps;
   // the global toggle adds a 30px button and a gap. Keep in sync with HighlightOptions.
-  const colorStripMinWidth = toolbarToolTypes.length <= 4 ? 100 : 122;
+  const colorStripMinWidth = visibleToolTypes.length <= 4 ? 100 : 122;
   const highlightOptionsMinWidth = useResponsiveSize(
     90 +
       colorStripMinWidth +
       3 * highlightOptionsGap +
       (globalToggleAvailable ? 30 + highlightOptionsGap : 0),
   );
-  const highlightOptionsAvailable = shouldShowHighlightOptions(toolbarToolTypes, selection ?? null);
+  const highlightOptionsAvailable = shouldShowHighlightOptions(visibleToolTypes, selection ?? null);
   const annotPopupWidth =
     annotationNotes.length > 0 || noteEditorTarget
       ? annotPopupMaxWidth
       : Math.min(
           Math.max(
-            Math.max(toolbarToolTypes.length, 1) * annotPopupToolSize,
+            Math.max(visibleToolTypes.length, 1) * annotPopupToolSize,
             highlightOptionsAvailable ? highlightOptionsMinWidth : 0,
           ),
           annotPopupMaxWidth,
@@ -502,6 +527,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       setShowDictionaryPopup(false);
       setShowDeepLPopup(false);
       setShowProofreadPopup(false);
+      setShowSummarisePopup(false);
       setEditingAnnotation(null);
       setNoteEditorTarget(null);
     }, 500),
@@ -1366,7 +1392,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       // answering it with the toolbar (or, worse, re-running the quick action)
       // closed the surface on the frame it opened (#6018). Nothing can select
       // new text while one of these is up — they all sit over the page.
-      if (showDictionaryPopup || showDeepLPopup || showProofreadPopup) return;
+      if (showDictionaryPopup || showDeepLPopup || showProofreadPopup || showSummarisePopup) return;
 
       const { enableAnnotationQuickActions, annotationQuickAction } = viewSettings;
       if (wantWordLensDict) {
@@ -1535,6 +1561,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       timeout: 2000,
     });
     if (!appService?.isMobile) {
+      setPanelMode('notebook');
       setNotebookActiveTab('notes');
       setNotebookVisible(true);
     }
@@ -1956,6 +1983,16 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     setShowAnnotPopup(false);
     void suppressNativeSelectionHandles();
     setShowDeepLPopup(true);
+  };
+
+  // Selection summarising: same lookup-popup pattern as translation — the
+  // toolbar hides, the popup summarises exactly the selected text, and
+  // dismissing it returns to the toolbar while the selection is live.
+  const handleSummarise = () => {
+    if (!selection || !selection.text) return;
+    setShowAnnotPopup(false);
+    void suppressNativeSelectionHandles();
+    setShowSummarisePopup(true);
   };
 
   // `oneTime` is required rather than defaulted: it decides whether this reads
@@ -2641,6 +2678,8 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
         return { tooltipText: _(label), Icon, onClick: handleDictionary };
       case 'translate':
         return { tooltipText: _(label), Icon, onClick: handleTranslation };
+      case 'summarise':
+        return { tooltipText: _(label), Icon, onClick: handleSummarise };
       case 'tts':
         return {
           tooltipText: _(label),
@@ -2664,7 +2703,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     }
   };
 
-  const toolButtons = toolbarToolTypes
+  const toolButtons = visibleToolTypes
     .map(buildToolButton)
     .filter((button): button is NonNullable<typeof button> => button !== null);
 
@@ -2711,7 +2750,11 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
   // toolbar: hide them while any of those is open, and let them come back with
   // the toolbar (or go with the dismiss).
   const overlaySurfaceOpen =
-    showDictionaryPopup || showDeepLPopup || showProofreadPopup || !!noteEditorTarget;
+    showDictionaryPopup ||
+    showDeepLPopup ||
+    showProofreadPopup ||
+    showSummarisePopup ||
+    !!noteEditorTarget;
 
   // Below `sm` (or short landscape) the note editor is a bottom sheet rather
   // than a popup pinned to the selection: an anchored editor would sit under
@@ -2771,6 +2814,17 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
         <TranslatorPopup
           bookKey={bookKey}
           text={selection?.text as string}
+          position={translatorPopupPosition}
+          trianglePosition={trianglePosition}
+          popupWidth={transPopupWidth}
+          popupHeight={transPopupHeight}
+          onDismiss={handleDismissPopupShowToolbar}
+        />
+      )}
+      {showSummarisePopup && trianglePosition && translatorPopupPosition && selection && (
+        <SummaryPopup
+          bookKey={bookKey}
+          text={selection.text}
           position={translatorPopupPosition}
           trianglePosition={trianglePosition}
           popupWidth={transPopupWidth}

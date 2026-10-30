@@ -26,6 +26,7 @@ import {
 } from '../../hooks/useNotebookDocumentCoordinator';
 import AIAssistant from './AIAssistant';
 import BookChat from './BookChat';
+import CustomInstructionField from './CustomInstructionField';
 import { getActiveCustomProvider } from '@/services/ai/customProviders';
 import SummaryPanel from './SummaryPanel';
 import NotebookHeader from './Header';
@@ -48,6 +49,7 @@ const Notebook: React.FC = () => {
     isNotebookVisible,
     isNotebookPinned,
     notebookActiveTab,
+    panelMode,
     getNotebookWidth,
     setNotebookWidth,
     setNotebookVisible,
@@ -204,7 +206,7 @@ const Notebook: React.FC = () => {
           !isNotebookPinned && viewSettings?.isEink && 'border-base-content border-s',
         )}
         role='group'
-        aria-label={_('Notebook')}
+        aria-label={panelMode === 'ai' ? _('AI') : _('Notebook')}
         dir={viewSettings?.rtl && languageDir === 'rtl' ? 'rtl' : 'ltr'}
         style={{
           width: isMobile ? '100%' : notebookWidth,
@@ -260,14 +262,28 @@ const Notebook: React.FC = () => {
             </div>
           )}
           <NotebookHeader
-            activeTab={notebookActiveTab}
+            mode={panelMode}
             isPinned={isNotebookPinned}
             isFullScreenMobile={isMobile && isFullHeightInMobile}
             handleClose={hideNotebook}
             handleTogglePin={handleTogglePin}
           />
         </div>
-        {notebookActiveTab === 'ai' ? (
+        {panelMode === 'notebook' ? (
+          // Notebook panel: Notes only — no AI or Summary tab is reachable
+          // from here.
+          <NotebookEditor
+            bookKey={sideBarBookKey}
+            handleOpenAnnotations={handleOpenAnnotations}
+            excerpts={excerptNotes}
+            onDeleteExcerpt={handleDeleteExcerpt}
+          />
+        ) : notebookActiveTab === 'summary' ? (
+          <div className='flex min-h-0 flex-1 flex-col'>
+            <SummaryPanel bookKey={sideBarBookKey} />
+            <CustomInstructionField />
+          </div>
+        ) : (
           <div className='flex min-h-0 flex-1 flex-col'>
             {(() => {
               // A custom provider with a key takes the lightweight book
@@ -282,24 +298,18 @@ const Notebook: React.FC = () => {
                 <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
               );
             })()}
+            <CustomInstructionField />
           </div>
-        ) : notebookActiveTab === 'summary' ? (
-          <div className='flex min-h-0 flex-1 flex-col'>
-            <SummaryPanel bookKey={sideBarBookKey} />
-          </div>
-        ) : (
-          <NotebookEditor
-            bookKey={sideBarBookKey}
-            handleOpenAnnotations={handleOpenAnnotations}
-            excerpts={excerptNotes}
-            onDeleteExcerpt={handleDeleteExcerpt}
-          />
         )}
         <div
           className='shrink-0'
           style={{ paddingBottom: `${(safeAreaInsets?.bottom || 0) / 2}px` }}
         >
-          <NotebookTabNavigation activeTab={notebookActiveTab} onTabChange={handleTabChange} />
+          <NotebookTabNavigation
+            activeTab={panelMode === 'notebook' ? 'notes' : notebookActiveTab}
+            onTabChange={handleTabChange}
+            mode={panelMode}
+          />
         </div>
       </div>
     </>

@@ -4,11 +4,15 @@ import { TextSelection } from '@/utils/sel';
 
 export type NotebookTab = 'notes' | 'ai' | 'summary';
 
+/** Which side panel is open: Notes alone, or the AI panel (chat + summary). */
+export type PanelMode = 'notebook' | 'ai';
+
 interface NotebookState {
   notebookWidth: string;
   isNotebookVisible: boolean;
   isNotebookPinned: boolean;
   notebookActiveTab: NotebookTab;
+  panelMode: PanelMode;
   notebookNewAnnotation: TextSelection | null;
   // Ids of the highlights eagerly created by the "Annotate" action as the anchor
   // for a note in progress (one per page of a cross-page selection, #5809).
@@ -25,6 +29,7 @@ interface NotebookState {
   setNotebookVisible: (visible: boolean) => void;
   setNotebookPin: (pinned: boolean) => void;
   setNotebookActiveTab: (tab: NotebookTab) => void;
+  setPanelMode: (mode: PanelMode) => void;
   setNotebookNewAnnotation: (selection: TextSelection | null) => void;
   setNotebookNewHighlightIds: (ids: string[]) => void;
   setNotebookEditAnnotation: (note: BookNote | null) => void;
@@ -37,6 +42,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   isNotebookVisible: false,
   isNotebookPinned: false,
   notebookActiveTab: 'notes',
+  panelMode: 'notebook',
   notebookNewAnnotation: null,
   notebookNewHighlightIds: [],
   notebookEditAnnotation: null,
@@ -49,6 +55,7 @@ export const useNotebookStore = create<NotebookState>((set, get) => ({
   setNotebookVisible: (visible: boolean) => set({ isNotebookVisible: visible }),
   setNotebookPin: (pinned: boolean) => set({ isNotebookPinned: pinned }),
   setNotebookActiveTab: (tab: NotebookTab) => set({ notebookActiveTab: tab }),
+  setPanelMode: (mode: PanelMode) => set({ panelMode: mode }),
   setNotebookNewAnnotation: (selection: TextSelection | null) =>
     set({ notebookNewAnnotation: selection }),
   setNotebookNewHighlightIds: (ids: string[]) => set({ notebookNewHighlightIds: ids }),

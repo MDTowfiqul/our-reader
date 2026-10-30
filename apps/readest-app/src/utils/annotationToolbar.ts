@@ -19,17 +19,35 @@ export const ALL_ANNOTATION_TOOL_TYPES: AnnotationToolType[] = [
   'search',
   'dictionary',
   'translate',
+  'summarise',
   'tts',
   'proofread',
   'share',
   'quotecard',
 ];
 
-// Default toolbar: the eight pre-existing tools in their original order.
+// Default toolbar: the pre-existing tools in their original order, plus
+// 'summarise' after 'translate' — selection summarising lives on the
+// reading page's selection popup, not in the Summary panel.
 // 'share' starts hidden in the Available tray per the #4014 design, and
 // 'copylink' is opt-in the same way (#5452) — a niche action most readers
 // never need, reachable by adding it in Customize Toolbar.
 export const DEFAULT_ANNOTATION_TOOLBAR_ITEMS: AnnotationToolType[] = [
+  'copy',
+  'highlight',
+  'annotate',
+  'search',
+  'dictionary',
+  'translate',
+  'summarise',
+  'tts',
+  'proofread',
+];
+
+// The default list before 'summarise' existed. Stored lists equal to
+// this are the untouched old default, not a deliberate customization,
+// so the reader may append 'summarise' to them (see Annotator).
+export const PRE_SUMMARISE_DEFAULT_ANNOTATION_TOOLBAR_ITEMS: AnnotationToolType[] = [
   'copy',
   'highlight',
   'annotate',

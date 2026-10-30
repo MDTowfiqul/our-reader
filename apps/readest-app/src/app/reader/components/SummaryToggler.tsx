@@ -13,20 +13,27 @@ interface SummaryTogglerProps {
   bookKey: string;
 }
 
-/** Reader header button: opens the Notebook straight on the Summary tab. */
+/** Reader header button: opens the AI panel straight on the Summary tab.
+    Summary lives in the AI panel, never in the Notebook panel. */
 const SummaryToggler: React.FC<SummaryTogglerProps> = ({ bookKey }) => {
   const _ = useTranslation();
   const { appService } = useEnv();
   const { setHoveredBookKey } = useReaderStore();
   const { sideBarBookKey, setSideBarBookKey } = useSidebarStore();
-  const { isNotebookVisible, toggleNotebook, setNotebookActiveTab, setNotebookVisible } =
-    useNotebookStore();
+  const {
+    isNotebookVisible,
+    toggleNotebook,
+    setNotebookActiveTab,
+    setNotebookVisible,
+    setPanelMode,
+  } = useNotebookStore();
   const iconSize18 = useResponsiveSize(18);
 
   const handleClick = () => {
     if (appService?.isMobile) {
       setHoveredBookKey('');
     }
+    setPanelMode('ai');
     setNotebookActiveTab('summary');
     if (sideBarBookKey === bookKey) {
       if (!isNotebookVisible) toggleNotebook();

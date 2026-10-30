@@ -1,21 +1,19 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useBookProgress } from '@/store/readerProgressStore';
 import { hasAnyAIKey } from '@/services/ai/customProviders';
+import { chapterTitleFor, flattenToc } from '@/services/ai/bookRetrieval';
 import { extractTextFromDocument } from '@/services/ai/utils/chunker';
 import {
   SUMMARY_DISCLAIMER,
   summarizeBookFromChapters,
-  summarizeSoFar,
   summarizeText,
   type SummaryKind,
-  type SummaryLanguage,
-  type SummaryPassage,
 } from '@/services/ai/summaryService';
 import { Button } from '@/components/ui/button';
 import { Loader2Icon } from 'lucide-react';
@@ -28,17 +26,15 @@ type SectionLike = {
   createDocument: () => Promise<Document>;
 };
 
-function chapterTitleFor(
-  toc: { id: number; label: string }[] | undefined,
-  sectionIndex: number,
-): string {
-  if (!toc || toc.length === 0) return `Section ${sectionIndex + 1}`;
-  for (let i = toc.length - 1; i >= 0; i--) {
-    if (toc[i]!.id <= sectionIndex) return toc[i]!.label;
-  }
-  return toc[0]?.label || `Section ${sectionIndex + 1}`;
-}
+type TocLike = { id: number; label: string; subitems?: TocLike[] };
 
+/**
+ * AI summaries: exactly two modes — this chapter, or the whole book.
+ * No language option: summaries are written in the book's own language
+ * (the service's 'book' language, i.e. "answer in the same language as
+ * the passage"). Selection summarising lives on the reading page's
+ * selection popup instead, and "what happened so far" is gone.
+ */
 const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
   const _ = useTranslation();
   const { settings } = useSettingsStore();
@@ -46,10 +42,9 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
   const progress = useBookProgress(bookKey);
   const bookData = getBookData(bookKey);
 
-  const [language, setLanguage] = useState<SummaryLanguage>('book');
   const [kind, setKind] = useState<SummaryKind>('chapter');
   // Chapter picker: defaults to the chapter being read; the user can pick
-  // any other chapter from the book's index instead.
+  // any chapter from the book's index instead.
   const [pickedChapter, setPickedChapter] = useState<number | null>(null);
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +56,33 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
   const authorName = bookData?.book?.author || '';
   const aiSettings = settings?.aiSettings;
   const hasKey = !!aiSettings && hasAnyAIKey(aiSettings);
+
+  const toc = useMemo(
+    () => flattenToc((bookData?.bookDoc?.toc || []) as TocLike[]),
+    [bookData?.bookDoc],
+  );
+  const sectionCount = (bookData?.bookDoc?.sections || []).length;
+  const currentSection = progress?.section?.current ?? 0;
+  // Picker entries: real index titles when the book has a TOC, otherwise
+  // one "Chapter N" entry per section. A TOC entry summarises its section.
+  const pickerEntries = useMemo(() => {
+    if (toc.length > 0) return toc.map((entry) => ({ value: entry.id, label: entry.label }));
+    return Array.from({ length: sectionCount }, (_, i) => ({
+      value: i,
+      label: `Chapter ${i + 1}`,
+    }));
+  }, [toc, sectionCount]);
+  // Default picker value: the TOC entry at or before the chapter being
+  // read (the section's own title), else the first entry.
+  const defaultPicked = useMemo(() => {
+    if (pickerEntries.length === 0) return 0;
+    let best = pickerEntries[0]!.value;
+    for (const entry of pickerEntries) {
+      if (entry.value <= currentSection) best = entry.value;
+      else break;
+    }
+    return best;
+  }, [pickerEntries, currentSection]);
 
   const getSectionText = useCallback(
     async (sectionIndex: number): Promise<string> => {
@@ -80,40 +102,11 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
     setSummary('');
     setProgressText('');
     try {
-      const base = { bookHash, bookTitle, authorName, language };
-      if (kind === 'selection') {
-        const selected = window.getSelection()?.toString().trim() || '';
-        if (!selected) {
-          setError(_('Select text in the book first, then open this tab again.'));
-          return;
-        }
-        setSummary(await summarizeText({ ...base, kind, text: selected }, aiSettings));
-        return;
-      }
-      if (kind === 'so-far') {
-        const currentPage = progress?.pageinfo?.current ?? 0;
-        const currentSection = progress?.section?.current ?? 0;
-        const passages: SummaryPassage[] = [];
-        const toc = (bookData?.bookDoc?.toc || []) as { id: number; label: string }[];
-        for (let i = 0; i <= currentSection; i++) {
-          const text = await getSectionText(i);
-          if (text) {
-            passages.push({
-              chapterTitle: chapterTitleFor(toc, i),
-              // Page numbers per section are unknown without layout; use the
-              // current page for the last section and 0 (always allowed)
-              // for earlier ones, so the spoiler filter never drops them.
-              page: i === currentSection ? currentPage : 0,
-              text,
-            });
-          }
-        }
-        setSummary(await summarizeSoFar({ ...base, kind, passages, currentPage }, aiSettings));
-        return;
-      }
+      // 'book' language = the book's own language, always.
+      const base = { bookHash, bookTitle, authorName, language: 'book' as const };
       if (kind === 'chapter') {
-        const sectionIndex = pickedChapter ?? progress?.section?.current ?? 0;
-        const toc = (bookData?.bookDoc?.toc || []) as { id: number; label: string }[];
+        const sectionIndex = pickedChapter ?? defaultPicked;
+        const rawToc = (bookData?.bookDoc?.toc || []) as TocLike[];
         const text = await getSectionText(sectionIndex);
         if (!text) {
           setError(_('Could not read the current chapter.'));
@@ -124,7 +117,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
             {
               ...base,
               kind,
-              chapterTitle: chapterTitleFor(toc, sectionIndex),
+              chapterTitle: chapterTitleFor(rawToc, sectionIndex),
               sectionIndex,
               text,
             },
@@ -135,7 +128,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
       }
       // Whole book: one chapter summary per section (cached), then reduce.
       const sections = (bookData?.bookDoc?.sections || []) as unknown as SectionLike[];
-      const toc = (bookData?.bookDoc?.toc || []) as { id: number; label: string }[];
+      const rawToc = (bookData?.bookDoc?.toc || []) as TocLike[];
       const chapterSummaries: string[] = [];
       for (let i = 0; i < sections.length; i++) {
         setProgressText(
@@ -151,7 +144,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
             {
               ...base,
               kind: 'chapter',
-              chapterTitle: chapterTitleFor(toc, i),
+              chapterTitle: chapterTitleFor(rawToc, i),
               sectionIndex: i,
               text,
             },
@@ -170,14 +163,13 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
     aiSettings,
     hasKey,
     kind,
-    language,
     bookHash,
     bookTitle,
     authorName,
-    progress,
     bookData?.bookDoc,
     getSectionText,
     pickedChapter,
+    defaultPicked,
     _,
   ]);
 
@@ -198,8 +190,6 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
         {(
           [
             ['chapter', _('This chapter')],
-            ['so-far', _('What happened so far')],
-            ['selection', _('Selected passage')],
             ['book', _('Whole book')],
           ] as [SummaryKind, string][]
         ).map(([value, label]) => (
@@ -213,37 +203,19 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
           </button>
         ))}
       </div>
-      <label className='flex items-center gap-2 text-xs'>
-        <span>{_('Language')}</span>
-        <select
-          className='select select-sm select-bordered'
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as SummaryLanguage)}
-        >
-          <option value='book'>{_("Book's language")}</option>
-          <option value='bn'>{'Bengali'}</option>
-          <option value='en'>{'English'}</option>
-        </select>
-      </label>
-      {kind === 'chapter' && (
+      {kind === 'chapter' && pickerEntries.length > 0 && (
         <label className='flex items-center gap-2 text-xs'>
           <span>{_('Chapter')}</span>
           <select
             className='select select-sm select-bordered flex-1'
-            value={pickedChapter ?? progress?.section?.current ?? 0}
+            value={pickedChapter ?? defaultPicked}
             onChange={(e) => setPickedChapter(Number(e.target.value))}
           >
-            {((bookData?.bookDoc?.sections || []) as unknown[]).map((_, i) => {
-              const toc = (bookData?.bookDoc?.toc || []) as {
-                id: number;
-                label: string;
-              }[];
-              return (
-                <option key={i} value={i}>
-                  {chapterTitleFor(toc, i)}
-                </option>
-              );
-            })}
+            {pickerEntries.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
           </select>
         </label>
       )}

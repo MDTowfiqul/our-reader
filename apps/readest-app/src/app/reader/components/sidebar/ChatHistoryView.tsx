@@ -29,7 +29,7 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({ bookKey }) => {
     renameConversation,
     createConversation,
   } = useAIChatStore();
-  const { setNotebookVisible, setNotebookActiveTab } = useNotebookStore();
+  const { setNotebookVisible, setNotebookActiveTab, setPanelMode } = useNotebookStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -48,6 +48,7 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({ bookKey }) => {
   const handleSelectConversation = useCallback(
     async (conversation: AIConversation) => {
       await setActiveConversation(conversation.id);
+      setPanelMode('ai');
       setNotebookVisible(true);
       setNotebookActiveTab('ai');
     },
@@ -56,6 +57,7 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({ bookKey }) => {
 
   const handleNewConversation = useCallback(async () => {
     await createConversation(bookHash, `Chat about ${bookTitle}`);
+    setPanelMode('ai');
     setNotebookVisible(true);
     setNotebookActiveTab('ai');
   }, [bookHash, bookTitle, createConversation, setNotebookVisible, setNotebookActiveTab]);
