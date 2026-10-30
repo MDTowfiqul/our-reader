@@ -5,13 +5,12 @@ import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { checkForAppUpdates, checkAppReleaseNotes } from '@/helpers/updater';
-import { isTauriAppPlatform } from '@/services/environment';
+import { isTauriAppPlatform, isWebAppPlatform } from '@/services/environment';
 import { parseWebViewInfo } from '@/utils/ua';
 import { getAppVersion } from '@/utils/version';
 import { writeTextToClipboard } from '@/utils/clipboard';
 import { eventDispatcher } from '@/utils/event';
 import SupportLinks from './SupportLinks';
-import LegalLinks from './LegalLinks';
 import Dialog from './Dialog';
 import Link from './Link';
 
@@ -109,7 +108,7 @@ export const AboutWindow = () => {
   // report (#5285), so tapping the label copies it. The label itself stays
   // localized; the copied string is locale-neutral and names the app first.
   const handleCopyVersion = async () => {
-    const copied = await writeTextToClipboard(`Readest ${getAppVersion()} (${browserInfo})`);
+    const copied = await writeTextToClipboard(`Our Reader ${getAppVersion()} (${browserInfo})`);
     if (!copied) return;
     eventDispatcher.dispatch('toast', {
       type: 'info',
@@ -123,7 +122,7 @@ export const AboutWindow = () => {
     <Dialog
       id='about_window'
       isOpen={isOpen}
-      title={_('About Readest')}
+      title={_('About Our Reader')}
       onClose={handleClose}
       boxClassName='sm:w-[480px]! sm:max-w-(--breakpoint-sm)! sm:h-auto'
     >
@@ -134,7 +133,7 @@ export const AboutWindow = () => {
               <Image src='/icon.png' alt='App Logo' className='h-20 w-20' width={64} height={64} />
             </div>
             <div className='flex select-text flex-col items-center'>
-              <h2 className='mb-2 text-2xl font-bold'>Readest</h2>
+              <h2 className='mb-2 text-2xl font-bold'>Our Reader</h2>
               <button
                 type='button'
                 title={_('Copy')}
@@ -144,27 +143,33 @@ export const AboutWindow = () => {
                 {versionInfo}
               </button>
             </div>
-            <div className='my-1 h-5'>
-              {!updateStatus && (
-                <button
-                  className='btn btn-sm btn-primary cursor-pointer p-1 text-xs'
-                  onClick={appService?.hasUpdater ? handleCheckUpdate : handleShowRecentUpdates}
-                >
-                  {_('Check Update')}
-                </button>
-              )}
-              {updateStatus === 'updated' && (
-                <p className='text-neutral-content mt-2 text-xs'>
-                  {_('Already the latest version')}
-                </p>
-              )}
-              {updateStatus === 'checking' && (
-                <p className='text-neutral-content mt-2 text-xs'>{_('Checking for updates...')}</p>
-              )}
-              {updateStatus === 'error' && (
-                <p className='text-error mt-2 text-xs'>{_('Error checking for updates')}</p>
-              )}
-            </div>
+            {/* Web builds have no Readest release updater: hide the button there
+                instead of checking Readest releases. Native builds keep it. */}
+            {!isWebAppPlatform() && (
+              <div className='my-1 h-5'>
+                {!updateStatus && (
+                  <button
+                    className='btn btn-sm btn-primary cursor-pointer p-1 text-xs'
+                    onClick={appService?.hasUpdater ? handleCheckUpdate : handleShowRecentUpdates}
+                  >
+                    {_('Check Update')}
+                  </button>
+                )}
+                {updateStatus === 'updated' && (
+                  <p className='text-neutral-content mt-2 text-xs'>
+                    {_('Already the latest version')}
+                  </p>
+                )}
+                {updateStatus === 'checking' && (
+                  <p className='text-neutral-content mt-2 text-xs'>
+                    {_('Checking for updates...')}
+                  </p>
+                )}
+                {updateStatus === 'error' && (
+                  <p className='text-error mt-2 text-xs'>{_('Error checking for updates')}</p>
+                )}
+              </div>
+            )}
           </div>
 
           <hr aria-hidden='true' className='border-base-300 my-12 w-full sm:my-4' />
@@ -190,13 +195,21 @@ export const AboutWindow = () => {
             </p>
             <p className='text-neutral-content text-xs'>
               Source code is available at{' '}
-              <Link href='https://github.com/readest/readest' className='text-blue-500 underline'>
+              <Link
+                href='https://github.com/MDTowfiqul/our-reader'
+                className='text-blue-500 underline'
+              >
                 GitHub
               </Link>
               .
             </p>
-
-            <LegalLinks />
+            <p className='text-neutral-content text-xs'>
+              Based on{' '}
+              <Link href='https://github.com/readest/readest' className='text-blue-500 underline'>
+                Readest
+              </Link>
+              , an open-source ebook reader.
+            </p>
           </div>
           <SupportLinks />
         </div>

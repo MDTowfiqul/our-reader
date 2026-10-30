@@ -25,7 +25,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   // keeps the full dynamic implementation below.
   if (process.env['NEXT_PUBLIC_APP_PLATFORM'] !== 'web') {
     return {
-      title: 'Open in Readest',
+      title: 'Open in Our Reader',
       description: 'Open-source ebook reader for everyone, on every device.',
     };
   }
@@ -36,7 +36,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
   if (!token) {
     return {
-      title: 'Open in Readest',
+      title: 'Open in Our Reader',
       description: 'Open-source ebook reader for everyone, on every device.',
     };
   }
@@ -44,7 +44,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const result = await resolveActiveShare(token);
   if (!result.ok) {
     return {
-      title: 'Share link unavailable · Readest',
+      title: 'Share link unavailable · Our Reader',
       description: 'This share link is no longer available.',
     };
   }
@@ -53,25 +53,25 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const ogImage = `${READEST_WEB_BASE_URL}/api/share/${token}/og.png`;
 
   return {
-    title: `${share.bookTitle} · Shared via Readest`,
+    title: `${share.bookTitle} · Shared via Our Reader`,
     description: share.bookAuthor
-      ? `${share.bookAuthor} · Shared via Readest`
-      : 'Shared via Readest',
+      ? `${share.bookAuthor} · Shared via Our Reader`
+      : 'Shared via Our Reader',
     openGraph: {
       type: 'book',
       url: shareUrl,
       title: share.bookTitle,
       description: share.bookAuthor
-        ? `${share.bookAuthor} · Shared via Readest`
-        : 'Shared via Readest',
+        ? `${share.bookAuthor} · Shared via Our Reader`
+        : 'Shared via Our Reader',
       images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title: share.bookTitle,
       description: share.bookAuthor
-        ? `${share.bookAuthor} · Shared via Readest`
-        : 'Shared via Readest',
+        ? `${share.bookAuthor} · Shared via Our Reader`
+        : 'Shared via Our Reader',
       images: [ogImage],
     },
   };

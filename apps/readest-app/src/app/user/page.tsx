@@ -28,7 +28,6 @@ import {
   redirectToStripePortal,
   type StripePortalFlow,
 } from '@/libs/payment/stripe/client';
-import LegalLinks from '@/components/LegalLinks';
 import Spinner from '@/components/Spinner';
 import ProfileHeader from './components/Header';
 import UserInfo from './components/UserInfo';
@@ -293,7 +292,6 @@ const ProfilePage = () => {
                   </>
                 )}
 
-                <LegalLinks />
               </div>
             </div>
         </div>

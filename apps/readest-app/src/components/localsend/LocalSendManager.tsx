@@ -134,7 +134,7 @@ const LocalSendManager: React.FC = () => {
     } catch {
       /* fall through to the generic default */
     }
-    return 'Readest';
+    return 'Our Reader';
   }, []);
 
   // Service lifecycle: match the running state to the per-device preference.

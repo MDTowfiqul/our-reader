@@ -35,7 +35,7 @@ vi.mock('@tauri-apps/plugin-haptics', () => ({ impactFeedback: vi.fn() }));
 const { default: Dialog } = await import('@/components/Dialog');
 
 const Harness = ({ isOpen }: { isOpen: boolean }) => (
-  <Dialog isOpen={isOpen} title='About Readest' onClose={vi.fn()}>
+  <Dialog isOpen={isOpen} title='About Our Reader' onClose={vi.fn()}>
     {isOpen && <p>Version 0.12.1</p>}
   </Dialog>
 );

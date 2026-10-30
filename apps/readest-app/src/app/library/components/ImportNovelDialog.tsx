@@ -414,7 +414,7 @@ const ImportNovelDialog: React.FC<ImportNovelDialogProps> = ({ isOpen, onClose, 
               <p className='text-base-content/60 text-sm leading-relaxed'>
                 {progress.done === progress.total
                   ? _('Preparing your book…')
-                  : _('Keep Readest open until the import is complete.')}
+                  : _('Keep Our Reader open until the import is complete.')}
               </p>
             </div>
             <div className='flex justify-center'>

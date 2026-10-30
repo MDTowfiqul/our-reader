@@ -80,7 +80,7 @@ const Harness = ({ onCommit }: { onCommit: (sample: Sample) => void }) => {
     <>
       <Dialog
         isOpen={isOpen}
-        title='About Readest'
+        title='About Our Reader'
         boxClassName='sm:h-auto'
         onClose={() => setIsOpen(false)}
       >

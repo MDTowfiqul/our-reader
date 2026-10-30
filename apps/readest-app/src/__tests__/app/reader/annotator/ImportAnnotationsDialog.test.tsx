@@ -42,7 +42,7 @@ describe('ImportAnnotationsDialog', () => {
     );
 
     expect(screen.getByRole('dialog', { name: 'Import Annotations' })).toBeTruthy();
-    expect(screen.getByText('Readest')).toBeTruthy();
+    expect(screen.getByText('Our Reader')).toBeTruthy();
     expect(screen.getByText('Moon+ Reader')).toBeTruthy();
     expect(screen.getByText('ReadEra')).toBeTruthy();
   });
@@ -79,7 +79,7 @@ describe('ImportAnnotationsDialog', () => {
     expect(onImportReadEra).toHaveBeenCalledTimes(1);
   });
 
-  it('invokes onImportReadest when the Readest row is clicked', () => {
+  it('invokes onImportReadest when the Our Reader row is clicked', () => {
     const onImportReadest = vi.fn();
     render(
       <ImportAnnotationsDialog
@@ -91,7 +91,7 @@ describe('ImportAnnotationsDialog', () => {
       />,
     );
 
-    fireEvent.click(screen.getByText('Readest'));
+    fireEvent.click(screen.getByText('Our Reader'));
     expect(onImportReadest).toHaveBeenCalledTimes(1);
   });
 });

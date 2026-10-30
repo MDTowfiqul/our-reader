@@ -29,7 +29,7 @@ const NotebookTransitionAlert: React.FC<NotebookTransitionAlertProps> = ({
         </h2>
         <p className='text-base-content/75 text-sm'>
           {_(
-            'Readest could not save this Notebook or create a local recovery copy. Keep the book open, retry, copy the draft, or discard it before continuing.',
+            'Our Reader could not save this Notebook or create a local recovery copy. Keep the book open, retry, copy the draft, or discard it before continuing.',
           )}
         </p>
       </div>

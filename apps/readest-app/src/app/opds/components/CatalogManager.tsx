@@ -482,7 +482,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
     if (isWebCatalogProxyWarningRequired && !newCatalog.proxyConsent) {
       setProxyConsentError(
         _(
-          'Please confirm that this OPDS connection will be proxied through Readest servers on the web app before continuing.',
+          'Please confirm that this OPDS connection will be proxied through Our Reader servers on the web app before continuing.',
         ),
       );
       return;
@@ -969,7 +969,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
                       />
                       <span className='text-sm text-sm leading-6'>
                         {_(
-                          'I understand this OPDS connection will be proxied through Readest servers on the web app. If I do not trust Readest with these credentials or headers, I should use the native app instead.',
+                          'I understand this OPDS connection will be proxied through Our Reader servers on the web app. If I do not trust Our Reader with these credentials or headers, I should use the native app instead.',
                         )}
                       </span>
                     </label>
@@ -1076,7 +1076,7 @@ export function CatalogManager({ inSubPage = false }: CatalogManagerProps = {}) 
                     'New publications from this catalog will no longer be downloaded automatically.',
                   )
                 : _(
-                    'Readest will automatically download every new publication from this catalog when the app syncs. This may download a large number of books.',
+                    'Our Reader will automatically download every new publication from this catalog when the app syncs. This may download a large number of books.',
                   )
             }
             confirmLabel={confirmAutoDownloadCatalog.autoDownload ? _('Turn Off') : _('Enable')}

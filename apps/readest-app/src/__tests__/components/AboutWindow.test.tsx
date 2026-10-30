@@ -42,6 +42,7 @@ vi.mock('@/utils/ua', () => ({
 
 vi.mock('@/services/environment', () => ({
   isTauriAppPlatform: () => mockIsTauriAppPlatform(),
+  isWebAppPlatform: () => false,
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -104,7 +105,7 @@ describe('AboutWindow version label', () => {
     fireEvent.click(label);
 
     await waitFor(() => expect(mockWriteTextToClipboard).toHaveBeenCalledTimes(1));
-    expect(mockWriteTextToClipboard).toHaveBeenCalledWith('Readest 0.11.20 (Chrome 148)');
+    expect(mockWriteTextToClipboard).toHaveBeenCalledWith('Our Reader 0.11.20 (Chrome 148)');
   });
 
   it('upgrades the label with the native webview version when available', async () => {
@@ -117,7 +118,7 @@ describe('AboutWindow version label', () => {
 
     await waitFor(() => expect(mockWriteTextToClipboard).toHaveBeenCalledTimes(1));
     expect(mockWriteTextToClipboard).toHaveBeenCalledWith(
-      'Readest 0.11.20 (WebView2 152.0.4191.66)',
+      'Our Reader 0.11.20 (WebView2 152.0.4191.66)',
     );
   });
 
@@ -130,7 +131,7 @@ describe('AboutWindow version label', () => {
     fireEvent.click(label);
 
     await waitFor(() => expect(mockWriteTextToClipboard).toHaveBeenCalledTimes(1));
-    expect(mockWriteTextToClipboard).toHaveBeenCalledWith('Readest 0.11.20 (Chrome 148)');
+    expect(mockWriteTextToClipboard).toHaveBeenCalledWith('Our Reader 0.11.20 (Chrome 148)');
   });
 
   it('shows a toast confirming the copy', async () => {

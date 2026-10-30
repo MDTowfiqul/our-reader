@@ -2355,7 +2355,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
       accept: '.json,application/json',
       extensions: ['json'],
       multiple: false,
-      dialogTitle: _('Select Readest Annotations File'),
+      dialogTitle: _('Select Our Reader Annotations File'),
     });
     if (result.error || result.files.length === 0) return;
 
@@ -2373,7 +2373,7 @@ const Annotator: React.FC<{ bookKey: string; contentInsets: Insets; gridInsets?:
     if (!payload) {
       eventDispatcher.dispatch('toast', {
         type: 'warning',
-        message: _('This is not a Readest annotations file.'),
+        message: _('This is not an Our Reader annotations file.'),
         timeout: 3000,
       });
       return;

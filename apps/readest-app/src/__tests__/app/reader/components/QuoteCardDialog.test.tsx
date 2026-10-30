@@ -96,7 +96,7 @@ describe('QuoteCardDialog (#5830)', () => {
   test('renders the preview with the default style and re-renders on changes', async () => {
     await open();
     expect(h.renderQuoteCard).toHaveBeenCalled();
-    expect(h.renderQuoteCard.mock.calls.at(-1)![1]).toEqual({ ...content, brand: 'via Readest' });
+    expect(h.renderQuoteCard.mock.calls.at(-1)![1]).toEqual({ ...content, brand: 'via Our Reader' });
     expect(lastStyle()).toEqual({
       layout: 'classic',
       colors: QUOTE_CARD_COLORS.paper,

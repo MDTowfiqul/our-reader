@@ -238,7 +238,7 @@ const ABSForm: React.FC<ABSFormProps> = ({ onBack }) => {
               <Tips>
                 <li>
                   {_(
-                    'Using Readest on the web? Add {{origin}} to Allowed CORS Origins in your Audiobookshelf server settings.',
+                    'Using Our Reader on the web? Add {{origin}} to Allowed CORS Origins in your Audiobookshelf server settings.',
                     { origin: webOrigin },
                   )}{' '}
                   <a

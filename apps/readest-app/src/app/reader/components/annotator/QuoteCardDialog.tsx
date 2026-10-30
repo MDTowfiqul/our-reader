@@ -78,7 +78,7 @@ const QuoteCardDialog: React.FC<QuoteCardDialogProps> = ({
   );
 
   // The brand stays untranslated inside the localized signature.
-  const signature = _('via {{app}}', { app: 'Readest' });
+  const signature = _('via {{app}}', { app: 'Our Reader' });
   const card = useMemo(() => ({ ...content, brand: signature }), [content, signature]);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ const QuoteCardDialog: React.FC<QuoteCardDialogProps> = ({
     };
   }, [isOpen, card, style]);
 
-  const filename = `${makeSafeFilename(content.title || 'Readest')}-quote.png`;
+  const filename = `${makeSafeFilename(content.title || 'Our Reader')}-quote.png`;
   const mimeType = 'image/png';
   const getBytes = async () => (await quoteCardToPng(canvasRef.current!)).arrayBuffer();
   const toast = (type: 'info' | 'error', message: string) =>
@@ -271,7 +271,7 @@ const QuoteCardDialog: React.FC<QuoteCardDialogProps> = ({
             {content.qrUrl && (
               <SettingsSwitchRow
                 label={_('QR Code')}
-                description={_('Links to this passage in Readest')}
+                description={_('Links to this passage in Our Reader')}
                 checked={showQr}
                 onChange={() => setShowQr((value) => !value)}
               />
