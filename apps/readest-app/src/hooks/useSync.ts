@@ -11,6 +11,7 @@ import { transformBookNoteFromDB } from '@/utils/transform';
 import { transformBookFromDB } from '@/utils/transform';
 import { DBBook, DBBookConfig, DBBookNote } from '@/types/records';
 import { Book, BookConfig, BookDataRecord, BookNote } from '@/types/book';
+import { isReadestCloudEnabled } from '@/services/sync/cloudSyncProvider';
 import { navigateToLogin } from '@/utils/nav';
 import { useReaderStore } from '@/store/readerStore';
 
@@ -240,7 +241,9 @@ export function useSync(bookKey?: string) {
         if (err.message.includes('Not authenticated') && latest.keepLogin) {
           latest.keepLogin = false;
           setSettings(latest);
-          navigateToLogin(router);
+          // Our Reader fork: never bounce to the Readest login when
+          // Readest Cloud is off; the Drive-only user has no such account.
+          if (isReadestCloudEnabled(latest)) navigateToLogin(router);
         }
         setSyncError(err.message || `Error pulling ${type}`);
       } else {

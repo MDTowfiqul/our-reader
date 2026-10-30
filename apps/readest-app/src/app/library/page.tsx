@@ -33,7 +33,7 @@ import { saveBookMetadataEdit } from '@/services/bookMetadataEdit';
 import { eventDispatcher } from '@/utils/event';
 import { transferManager } from '@/services/transferManager';
 import { purgeCloudBookData } from '@/services/purgeCloudBookData';
-import { isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
+import { isReadestCloudEnabled, isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
 import { getFilename, getFolderImportGroupName, joinScannedPath } from '@/utils/path';
 import {
   extractCollectionPack,
@@ -787,7 +787,15 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
           saveSettings(envConfig, settings);
         }
       } else if (settings.keepLogin) {
-        router.push('/auth');
+        // Our Reader fork: Readest Cloud is off, so a stale keepLogin flag
+        // must never bounce a refresh to /auth. Clear it instead.
+        if (isReadestCloudEnabled(settings)) {
+          router.push('/auth');
+        } else {
+          settings.keepLogin = false;
+          setSettings(settings);
+          saveSettings(envConfig, settings);
+        }
       }
     };
 
