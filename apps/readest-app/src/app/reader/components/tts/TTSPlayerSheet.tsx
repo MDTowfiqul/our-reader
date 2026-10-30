@@ -192,6 +192,8 @@ const TTSPlayerSheet = ({
   const [voiceGroups, setVoiceGroups] = useState<TTSVoicesGroup[]>([]);
   const [rate, setRate] = useState(viewSettings?.ttsRate ?? 1.0);
   const [selectedVoice, setSelectedVoice] = useState('');
+  const [voiceSearch, setVoiceSearch] = useState('');
+  const [testingVoice, setTestingVoice] = useState(false);
   // The voice list is an accordion: at most one group open. Until the reader
   // taps a header, the group of the voice in use (else the first) is open;
   // tapping the open header folds it (null: all folded).
@@ -278,8 +280,19 @@ const TTSPlayerSheet = ({
     setView('main');
     setRate(getViewSettings(bookKey)?.ttsRate ?? 1.0);
     setSelectedVoice(onGetVoiceId());
+    setVoiceSearch('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // A test sample is a stray utterance, not book audio: stop it whenever
+  // the sheet closes or the reader leaves the voice view.
+  useEffect(() => {
+    if (isOpen && view === 'voice') return;
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setTestingVoice(false);
+  }, [isOpen, view]);
 
   // Opened while the clients initialized: pick up the voice once they are
   // ready, without leaving the view the user is on.
@@ -352,6 +365,66 @@ const TTSPlayerSheet = ({
   const handleSelectTimeout = (value: number) => {
     onSelectTimeout(bookKey, value);
     setView('main');
+  };
+
+  // A web app cannot download voice data itself, so "Open phone TTS
+  // settings" only ever attempts the Android settings intent. On any other
+  // platform it deliberately does nothing: the manual-steps note next to
+  // the button stays visible as the fallback, never a dead link.
+  const handleOpenPhoneTTSSettings = () => {
+    if (typeof window === 'undefined') return;
+    if (/Android/i.test(window.navigator.userAgent)) {
+      window.location.href = 'intent:#Intent;action=android.settings.TTS_SETTINGS;end';
+    }
+  };
+
+  // The Settings dialog is mounted in reader context (ReaderContent), so
+  // drilling it to the TTS panel from the sheet works through the store.
+  const handleOpenDeviceSettings = () => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setTestingVoice(false);
+    const { setRequestedPanel, setSettingsDialogOpen } = useSettingsStore.getState();
+    setRequestedPanel('TTS');
+    setSettingsDialogOpen(true);
+    onClose();
+  };
+
+  const selectedVoiceGroup = voiceGroups.find((group) =>
+    group.voices.some((voice) => voice.id === selectedVoice),
+  );
+  // Only device voices can be sampled through window.speechSynthesis;
+  // custom-service and narration voices are hidden from the test button
+  // rather than offered a test that could never use them.
+  const canTestSelectedVoice = selectedVoiceGroup?.id === 'web-speech-api';
+
+  const handleTestVoice = () => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+    if (testingVoice) {
+      synth.cancel();
+      setTestingVoice(false);
+      return;
+    }
+    if (!canTestSelectedVoice) return;
+    const selectedName = voiceGroups
+      .flatMap((group) => group.voices)
+      .find((voice) => voice.id === selectedVoice)?.name;
+    const voice =
+      synth.getVoices().find((v) => (v.voiceURI || v.name) === selectedVoice) ??
+      synth.getVoices().find((v) => v.name === selectedName);
+    const utterance = new SpeechSynthesisUtterance(_('This is a sample of this voice.'));
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    }
+    utterance.rate = rate;
+    utterance.onend = () => setTestingVoice(false);
+    utterance.onerror = () => setTestingVoice(false);
+    synth.cancel();
+    synth.speak(utterance);
+    setTestingVoice(true);
   };
 
   // Entitled users drill into the per-chapter download view; everyone else is
@@ -755,83 +828,155 @@ const TTSPlayerSheet = ({
       )}
       {view === 'voice' && (
         <div className='flex w-full flex-col pb-4'>
-          {voiceGroups.map((voiceGroup) => {
-            const collapsed = voiceGroup.id !== openGroup;
-            // The group holding the voice in use stands out, and names it
-            // while folded (open, its check mark already shows it).
-            const current = voiceGroup.voices.find((voice) => voice.id === selectedVoice);
-            return (
-              <div key={voiceGroup.id}>
+          <div className='flex flex-col gap-2 px-2 pb-2'>
+            <button
+              type='button'
+              onClick={handleOpenDeviceSettings}
+              className='btn btn-sm btn-contrast eink-bordered self-start'
+            >
+              {_('Device TTS settings')}
+            </button>
+            <input
+              type='search'
+              value={voiceSearch}
+              onChange={(e) => setVoiceSearch(e.target.value)}
+              placeholder={_('Search voices or languages')}
+              aria-label={_('Search voices or languages')}
+              className='input input-sm eink-bordered w-full'
+            />
+            {canTestSelectedVoice && (
+              <button
+                type='button'
+                onClick={handleTestVoice}
+                className='btn btn-sm btn-contrast eink-bordered self-start'
+              >
+                {testingVoice ? _('Stop sample') : _('Test voice')}
+              </button>
+            )}
+          </div>
+          {voiceGroups.length === 1 && voiceGroups[0]?.id === 'no-voices' && (
+            <div className='flex flex-col gap-2 px-2 pb-2'>
+              <p className='text-base-content/65 text-sm leading-relaxed'>
+                {_(
+                  'Voices come from your phone, and no voice for {{lang}} is installed. Install one in your phone’s text-to-speech settings, or adjust the device voices below.',
+                  { lang: getLanguageName(ttsLang) },
+                )}
+              </p>
+              <div className='flex flex-wrap gap-2'>
                 <button
                   type='button'
-                  aria-expanded={!collapsed}
-                  onClick={() => setPickedGroup(collapsed ? voiceGroup.id : null)}
-                  className={clsx(
-                    'flex w-full items-center gap-1 px-2 py-1 text-start text-sm sm:text-xs',
-                    current ? 'text-base-content font-semibold' : 'text-base-content/60',
-                  )}
+                  onClick={handleOpenDeviceSettings}
+                  className='btn btn-sm btn-contrast eink-bordered'
                 >
-                  <span className='flex-1'>
-                    {/* A single-voice group (a book's own narrator) would otherwise
-                      read "Narration: 1 voices". */}
-                    {voiceGroup.voices.length === 1
-                      ? _(voiceGroup.name)
-                      : _('{{engine}}: {{count}} voices', {
-                          engine: _(voiceGroup.name),
-                          count: voiceGroup.voices.length,
-                        })}
-                  </span>
-                  {collapsed && current && (
-                    <span className='max-w-[50%] shrink-0 truncate'>{_(current.name)}</span>
-                  )}
-                  <MdExpandMore
-                    className={clsx('shrink-0', collapsed && '-rotate-90 rtl:rotate-90')}
-                  />
+                  {_('Device TTS settings')}
                 </button>
-                {!collapsed &&
-                  voiceGroup.voices.map((voice) => (
-                    <button
-                      key={`${voiceGroup.id}-${voice.id}`}
-                      type='button'
-                      // A premium voice the plan lacks stays tappable: it
-                      // leads to the upgrade instead of speaking.
-                      disabled={voice.disabled && !voice.tier}
-                      onClick={() =>
-                        voice.disabled ? handleUpgrade() : handleSelectVoice(voice.id, voice.lang)
-                      }
-                      className='flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start'
-                    >
-                      <span className='flex h-6 w-6 items-center justify-center'>
-                        {selectedVoice === voice.id && <MdCheck className='text-base-content' />}
-                      </span>
-                      <span
-                        className={clsx(
-                          'overflow-hidden text-ellipsis text-base sm:text-sm',
-                          voice.disabled && 'text-base-content/40',
-                        )}
+                <button
+                  type='button'
+                  onClick={handleOpenPhoneTTSSettings}
+                  className='btn btn-sm btn-contrast eink-bordered'
+                >
+                  {_('Open phone TTS settings')}
+                </button>
+              </div>
+              <p className='text-base-content/65 text-sm leading-relaxed'>
+                {_(
+                  'On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
+                )}
+              </p>
+            </div>
+          )}
+          {voiceGroups
+            .map((voiceGroup) => {
+              if (!voiceSearch.trim()) return voiceGroup;
+              const query = voiceSearch.trim().toLowerCase();
+              const voices = voiceGroup.voices.filter(
+                (voice) =>
+                  voice.name.toLowerCase().includes(query) ||
+                  getLanguageName(voice.lang).toLowerCase().includes(query) ||
+                  voice.lang.toLowerCase().includes(query),
+              );
+              return { ...voiceGroup, voices };
+            })
+            .filter((voiceGroup) => voiceGroup.voices.length > 0)
+            .map((voiceGroup) => {
+              // While searching, every matching group stays expanded so
+              // results are visible without opening each group by hand.
+              const collapsed = voiceSearch.trim() ? false : voiceGroup.id !== openGroup;
+              // The group holding the voice in use stands out, and names it
+              // while folded (open, its check mark already shows it).
+              const current = voiceGroup.voices.find((voice) => voice.id === selectedVoice);
+              return (
+                <div key={voiceGroup.id}>
+                  <button
+                    type='button'
+                    aria-expanded={!collapsed}
+                    onClick={() => setPickedGroup(collapsed ? voiceGroup.id : null)}
+                    className={clsx(
+                      'flex w-full items-center gap-1 px-2 py-1 text-start text-sm sm:text-xs',
+                      current ? 'text-base-content font-semibold' : 'text-base-content/60',
+                    )}
+                  >
+                    <span className='flex-1'>
+                      {/* A single-voice group (a book's own narrator) would otherwise
+                      read "Narration: 1 voices". */}
+                      {voiceGroup.voices.length === 1
+                        ? _(voiceGroup.name)
+                        : _('{{engine}}: {{count}} voices', {
+                            engine: _(voiceGroup.name),
+                            count: voiceGroup.voices.length,
+                          })}
+                    </span>
+                    {collapsed && current && (
+                      <span className='max-w-[50%] shrink-0 truncate'>{_(current.name)}</span>
+                    )}
+                    <MdExpandMore
+                      className={clsx('shrink-0', collapsed && '-rotate-90 rtl:rotate-90')}
+                    />
+                  </button>
+                  {!collapsed &&
+                    voiceGroup.voices.map((voice) => (
+                      <button
+                        key={`${voiceGroup.id}-${voice.id}`}
+                        type='button'
+                        // A premium voice the plan lacks stays tappable: it
+                        // leads to the upgrade instead of speaking.
+                        disabled={voice.disabled && !voice.tier}
+                        onClick={() =>
+                          voice.disabled ? handleUpgrade() : handleSelectVoice(voice.id, voice.lang)
+                        }
+                        className='flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start'
                       >
-                        {_(voice.name)}
-                      </span>
-                      {voice.variant && (
-                        <span className='badge badge-sm badge-ghost ms-auto shrink-0'>
-                          {voice.variant === 'multilingual' ? _('Multilingual') : _('Expressive')}
+                        <span className='flex h-6 w-6 items-center justify-center'>
+                          {selectedVoice === voice.id && <MdCheck className='text-base-content' />}
                         </span>
-                      )}
-                      {voice.tier && (
                         <span
                           className={clsx(
-                            'badge badge-sm badge-ghost shrink-0',
-                            !voice.variant && 'ms-auto',
+                            'overflow-hidden text-ellipsis text-base sm:text-sm',
+                            voice.disabled && 'text-base-content/40',
                           )}
                         >
-                          {voice.tier === 'pro' ? _('Pro') : _('Plus')}
+                          {_(voice.name)}
                         </span>
-                      )}
-                    </button>
-                  ))}
-              </div>
-            );
-          })}
+                        {voice.variant && (
+                          <span className='badge badge-sm badge-ghost ms-auto shrink-0'>
+                            {voice.variant === 'multilingual' ? _('Multilingual') : _('Expressive')}
+                          </span>
+                        )}
+                        {voice.tier && (
+                          <span
+                            className={clsx(
+                              'badge badge-sm badge-ghost shrink-0',
+                              !voice.variant && 'ms-auto',
+                            )}
+                          >
+                            {voice.tier === 'pro' ? _('Pro') : _('Plus')}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                </div>
+              );
+            })}
         </div>
       )}
       {view === 'timer' && (

@@ -51,6 +51,16 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     return () => synth.removeEventListener('voiceschanged', refresh);
   }, []);
 
+  // A web app cannot download voice data itself: this only attempts the
+  // Android settings intent. On any other platform it does nothing and
+  // the manual-steps note stays visible as the fallback.
+  const handleOpenPhoneTTSSettings = () => {
+    if (typeof window === 'undefined') return;
+    if (/Android/i.test(window.navigator.userAgent)) {
+      window.location.href = 'intent:#Intent;action=android.settings.TTS_SETTINGS;end';
+    }
+  };
+
   const handleLoadVoices = () => {
     const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
     if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
@@ -119,13 +129,22 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
               )}
             </p>
             {speechSupported && (
-              <button
-                type='button'
-                className='btn btn-contrast btn-sm eink-bordered mt-2'
-                onClick={handleLoadVoices}
-              >
-                {_('Load device voices')}
-              </button>
+              <div className='flex flex-wrap gap-2'>
+                <button
+                  type='button'
+                  className='btn btn-contrast btn-sm eink-bordered mt-2'
+                  onClick={handleLoadVoices}
+                >
+                  {_('Load device voices')}
+                </button>
+                <button
+                  type='button'
+                  className='btn btn-contrast btn-sm eink-bordered mt-2'
+                  onClick={handleOpenPhoneTTSSettings}
+                >
+                  {_('Open phone TTS settings')}
+                </button>
+              </div>
             )}
           </div>
         ) : (

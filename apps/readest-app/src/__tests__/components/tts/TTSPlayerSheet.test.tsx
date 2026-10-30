@@ -55,7 +55,15 @@ vi.mock('@/store/readerStore', () => ({
 
 const settings = { globalViewSettings: { ttsRate: 1.0, ttsSentenceGap: 0.15 } };
 const saveSettings = vi.fn();
-const settingsState = { settings, setSettings: vi.fn(), saveSettings };
+const setRequestedPanel = vi.fn();
+const setSettingsDialogOpen = vi.fn();
+const settingsState = {
+  settings,
+  setSettings: vi.fn(),
+  saveSettings,
+  setRequestedPanel,
+  setSettingsDialogOpen,
+};
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: Object.assign(() => settingsState, { getState: () => settingsState }),
 }));
@@ -602,6 +610,66 @@ describe('TTSPlayerSheet', () => {
     fireEvent.click(await waitFor(() => screen.getByText('Guy')));
     expect(props.onSetVoice).toHaveBeenCalledWith('guy', 'en-US');
     expect(viewSettings['ttsVoice']).toBe('guy');
+  });
+
+  test('voice search filters by voice name and expands matches', async () => {
+    const props = makeProps();
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    await waitFor(() => screen.getByText('Guy'));
+    fireEvent.change(screen.getByLabelText('Search voices or languages'), {
+      target: { value: 'guy' },
+    });
+    expect(screen.getByText('Guy')).toBeTruthy();
+    expect(screen.queryByText('Ava')).toBeNull();
+  });
+
+  test('test voice speaks a sample with the selected device voice', async () => {
+    const speak = vi.fn();
+    const cancel = vi.fn();
+    const voices = [
+      { voiceURI: 'ava', name: 'Ava', lang: 'en-US' },
+      { voiceURI: 'guy', name: 'Guy', lang: 'en-US' },
+    ];
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: { speak, cancel, getVoices: () => voices },
+      configurable: true,
+    });
+    // SpeechSynthesisUtterance is absent in jsdom; the sheet's sample path
+    // needs the constructor, so provide a minimal stand-in.
+    (window as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance = class {
+      text: string;
+      voice: unknown = null;
+      lang = '';
+      rate = 1;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    };
+    const props = makeProps();
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    await waitFor(() => screen.getByText('Test voice'));
+    fireEvent.click(screen.getByText('Test voice'));
+    expect(speak).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  test('empty voice list explains why and offers device settings', async () => {
+    const props = makeProps({
+      onGetVoices: vi.fn().mockResolvedValue([]),
+      onGetVoiceId: vi.fn().mockReturnValue(''),
+    });
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    await waitFor(() => screen.getByText('Open phone TTS settings'));
+    expect(screen.getByText(/no voice for English is installed/i)).toBeTruthy();
+    fireEvent.click(screen.getAllByText('Device TTS settings')[1]!);
+    expect(setRequestedPanel).toHaveBeenCalledWith('TTS');
+    expect(setSettingsDialogOpen).toHaveBeenCalledWith(true);
+    expect(props.onClose).toHaveBeenCalled();
   });
 
   test('timer button drills into the timer list and selects a timeout', async () => {
