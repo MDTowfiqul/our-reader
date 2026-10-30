@@ -160,6 +160,7 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey, gridInsets }) => {
           onGetPlaybackInfo={tts.handleGetPlaybackInfo}
           supportsLyrics={tts.supportsLyrics}
           currentSentenceText={tts.currentSentenceText}
+          surroundingSentences={tts.surroundingSentences}
           buffering={tts.buffering}
           onGetLyrics={tts.handleGetLyrics}
           onGetActiveIndex={tts.handleGetLyricActiveIndex}

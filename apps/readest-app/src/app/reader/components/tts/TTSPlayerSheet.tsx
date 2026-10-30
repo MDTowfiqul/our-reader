@@ -109,6 +109,15 @@ type TTSPlayerSheetProps = {
   // view show their own transcript). Optional so existing callers/tests
   // render without it; empty means "nothing to preview".
   currentSentenceText?: string;
+  // Previous/current/next window around it, when resolvable; null means
+  // the preview shows the current sentence alone. The current line always
+  // comes from the window when one is present, so the three lines can
+  // never disagree about which sentence is current.
+  surroundingSentences?: {
+    prev: string | null;
+    current: string;
+    next: string | null;
+  } | null;
   // Playing, but nothing audible yet — the transport button wears a ring.
   buffering: boolean;
   onGetLyrics: () => Promise<TTSLyrics | null>;
@@ -155,6 +164,7 @@ const TTSPlayerSheet = ({
   onGetPlaybackInfo,
   supportsLyrics,
   currentSentenceText,
+  surroundingSentences,
   buffering,
   onGetLyrics,
   onGetActiveIndex,
@@ -254,7 +264,8 @@ const TTSPlayerSheet = ({
   // borrows the lyric layout (thumbnail header, tall sheet, text filling
   // the space) so it reads like the real lyric view instead of a small
   // box squeezed under a big cover.
-  const showSentencePreview = !showLyrics && !!currentSentenceText;
+  const showSentencePreview =
+    !showLyrics && !!(surroundingSentences?.current || currentSentenceText);
   // Re-read when the loop changes or the sheet moves to another section.
   const loopRange = useMemo(
     () => (loopState === 'off' ? null : onGetLyricLoopRange()),
@@ -621,10 +632,20 @@ const TTSPlayerSheet = ({
               playback stops (the hook clears it) or when the lyric
               view is available. */}
           {showSentencePreview && (
-            <div className='flex w-full flex-1 items-center justify-center overflow-y-auto px-2 py-2'>
+            <div className='flex w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2'>
+              {surroundingSentences?.prev && (
+                <p className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'>
+                  {surroundingSentences.prev}
+                </p>
+              )}
               <p className='not-eink:bg-base-200 eink-bordered rounded-xl px-6 py-4 text-center font-serif text-xl font-semibold leading-relaxed'>
-                {currentSentenceText}
+                {surroundingSentences?.current ?? currentSentenceText}
               </p>
+              {surroundingSentences?.next && (
+                <p className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'>
+                  {surroundingSentences.next}
+                </p>
+              )}
             </div>
           )}
           {showLyrics && (

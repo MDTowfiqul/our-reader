@@ -737,6 +737,44 @@ describe('TTSPlayerSheet', () => {
     expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
   });
 
+  test('now reading preview shows faded previous and next sentences around the current one', () => {
+    const props = makeProps({
+      currentSentenceText: 'This sentence is being read aloud.',
+      surroundingSentences: {
+        prev: 'The sentence before it.',
+        current: 'This sentence is being read aloud.',
+        next: 'The sentence after it.',
+      },
+    });
+    render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('The sentence before it.')).toBeTruthy();
+    expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
+    expect(screen.getByText('The sentence after it.')).toBeTruthy();
+  });
+
+  test('now reading preview omits missing neighbours at chapter boundaries', () => {
+    const props = makeProps({
+      currentSentenceText: 'The very first sentence.',
+      surroundingSentences: {
+        prev: null,
+        current: 'The very first sentence.',
+        next: 'The second sentence.',
+      },
+    });
+    render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('The very first sentence.')).toBeTruthy();
+    expect(screen.getByText('The second sentence.')).toBeTruthy();
+  });
+
+  test('now reading preview falls back to the current sentence alone without a window', () => {
+    const props = makeProps({
+      currentSentenceText: 'This sentence is being read aloud.',
+      surroundingSentences: null,
+    });
+    render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
+  });
+
   test('now reading preview is absent without a current sentence', () => {
     const props = makeProps({ currentSentenceText: '' });
     render(<TTSPlayerSheet {...props} />);

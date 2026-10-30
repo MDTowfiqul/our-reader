@@ -117,6 +117,18 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   // needs per-sentence timing, but the controller still broadcasts every
   // spoken sentence via 'tts-speak-mark' (see the subscription below).
   const [currentSentenceText, setCurrentSentenceText] = useState('');
+  // Previous/current/next window around the sentence being spoken, for the
+  // preview's faded context lines. Null means "no window resolved yet":
+  // the preview then shows the current sentence alone (the behaviour
+  // before this window existed), never an empty box.
+  const [surroundingSentences, setSurroundingSentences] = useState<{
+    prev: string | null;
+    current: string;
+    next: string | null;
+  } | null>(null);
+  // Guards async window resolutions: a slow enumeration must not revive a
+  // window for a sentence playback has already moved past or stopped on.
+  const lastMarkTextRef = useRef('');
   const [loopState, setLoopState] = useState<TTSLoopState>('off');
   const syncClientCapabilities = useCallback(() => {
     const controller = ttsControllerRef.current;
@@ -275,6 +287,8 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       setIsPlaying(false);
       setIsPaused(false);
       setCurrentSentenceText('');
+      setSurroundingSentences(null);
+      lastMarkTextRef.current = '';
       setShowIndicator(false);
       setShowBackToCurrentTTSLocation(false);
       setTTSEnabled(bookKey, false);
@@ -668,7 +682,21 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     // stopping clears it via the session-changed handler below.
     const handleSpeakMark = (e: Event) => {
       const text = (e as CustomEvent<{ text?: string }>).detail?.text;
-      if (text) setCurrentSentenceText(text);
+      if (!text) return;
+      setCurrentSentenceText(text);
+      lastMarkTextRef.current = text;
+      // First enumeration of a chapter is async; until it resolves the
+      // previous window stays on screen, so the context lines never
+      // flicker to empty mid-chapter. A window that cannot be resolved
+      // (unlocatable text, narration, word-level enumeration) leaves the
+      // previous window alone, and the preview falls back to the current
+      // sentence on its own once that window is cleared at stop.
+      void ttsController
+        .getSurroundingSentences(text)
+        .then((window) => {
+          if (window && lastMarkTextRef.current === text) setSurroundingSentences(window);
+        })
+        .catch(() => {});
     };
 
     ttsController.addEventListener('tts-need-auth', handleNeedAuth);
@@ -695,6 +723,8 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       // Detaching from a controller (session replaced/ended) must not leave
       // a stale sentence displayed as "now reading".
       setCurrentSentenceText('');
+      setSurroundingSentences(null);
+      lastMarkTextRef.current = '';
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ttsController, bookKey]);
@@ -1462,6 +1492,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     audioTransport,
     supportsLyrics,
     currentSentenceText,
+    surroundingSentences,
     buffering,
     refreshTtsLang,
     getController,

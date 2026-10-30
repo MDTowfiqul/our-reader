@@ -212,6 +212,12 @@ export class TTSController extends EventTarget {
   // chapter must never delay first audio.
   #sectionTimeline: SectionTimeline | null = null;
   #timelineSectionIndex: number = -1;
+  // Text-only sentence list backing the "now reading" preview's context
+  // lines. Keyed by document (a section read in chunks changes document
+  // without changing section index), so a speak-mark never re-enumerates
+  // the chapter; a section/document change rebuilds it on next use.
+  #sentenceListCache: { doc: Document; sectionIndex: number; sentences: string[] } | null = null;
+  #lastSentenceListIndex = -1;
   #currentSentenceIndex: number = -1;
   // Set while an utterance has been handed to the client but no audio has been
   // heard from it yet — synthesis, network, decode, or a recording still
@@ -1215,6 +1221,96 @@ export class TTSController extends EventTarget {
     if (this.#currentSentenceIndex >= 0) return this.#currentSentenceIndex;
     const range = this.#getTts()?.getLastRange();
     return range ? timeline.indexOfRange(range) : -1;
+  }
+
+  // Previous/current/next sentence texts for the "now reading" preview's
+  // context lines. Text-only: unlike ensureTimeline it builds no
+  // SectionTimeline and needs no media clock, so device-TTS playback can
+  // show the neighbouring sentences faded around the one being spoken.
+  // Narration sections are excluded (their sentences come from the
+  // recording's clips, not from this enumeration), and so are sections
+  // whose enumeration granularity is not sentence-level: their entries
+  // cannot be matched against a spoken sentence, so the caller falls back
+  // to showing the current sentence alone. Returns null when the section
+  // cannot be enumerated or the spoken text cannot be located in it.
+  async getSurroundingSentences(
+    markText: string,
+  ): Promise<{ prev: string | null; current: string; next: string | null } | null> {
+    if (this.narrationActive) return null;
+    if (this.#ttsGranularity !== 'sentence') return null;
+    const doc = this.#ttsDoc;
+    const sectionIndex = this.#ttsSectionIndex;
+    if (!doc || sectionIndex < 0) return null;
+    let sentences =
+      this.#sentenceListCache?.doc === doc &&
+      this.#sentenceListCache.sectionIndex === sectionIndex
+        ? this.#sentenceListCache.sentences
+        : null;
+    if (!sentences) {
+      const { getSentences } = await import('foliate-js/tts.js');
+      const { textWalker } = await import('foliate-js/text-walker.js');
+      // Same speakability rule as the download manifest: getSentences
+      // enumerates every segment, but only the ones parseSSMLMarks keeps
+      // are ever spoken, so only those may appear as context lines.
+      const isSpeakable = (text: string) => {
+        const trimmed = text.trim();
+        return trimmed.length > 0 && !/^[\p{P}\p{S}]+$/u.test(trimmed);
+      };
+      const listed: string[] = [];
+      for (const entry of getSentences(
+        doc,
+        textWalker,
+        createTTSNodeFilter(),
+        this.#ttsGranularity,
+      )) {
+        const text = entry.range.toString();
+        if (isSpeakable(text)) {
+          listed.push(this.#skipInlineAnnotations ? stripInlineReadingAnnotations(text) : text);
+        }
+      }
+      // The section moved on while enumerating: these sentences belong to
+      // a document nobody is reading any more. Drop them; the next caller
+      // rebuilds against the section now loaded.
+      if (this.#ttsSectionIndex !== sectionIndex || this.#ttsDoc !== doc) return null;
+      sentences = listed;
+      this.#sentenceListCache = { doc, sectionIndex, sentences };
+      this.#lastSentenceListIndex = -1;
+    }
+    // Spoken marks are preprocessed text, enumerated entries are raw
+    // section text: compare whitespace-normalised, but display the
+    // enumerated text for neighbours and the mark itself for current, so
+    // the current line never changes from what is shown today.
+    const normalize = (t: string) => t.replace(/\s+/g, ' ').trim();
+    const target = normalize(markText);
+    if (!target) return null;
+    const normalized = sentences.map(normalize);
+    const last = this.#lastSentenceListIndex;
+    let idx = -1;
+    // Marks normally arrive in reading order, so search forward first --
+    // starting just past the last located index, so a repeated sentence
+    // resolves to its next occurrence rather than always the first. A
+    // re-dispatched mark (pause/resume on the same sentence) falls through
+    // to the last index itself, and a backward seek to the full search.
+    const searchFrom = (from: number) => {
+      for (let i = from; i < normalized.length; i++) {
+        if (normalized[i] === target) return i;
+      }
+      return -1;
+    };
+    if (last >= 0 && last < normalized.length) {
+      idx = searchFrom(last + 1);
+      if (idx < 0 && normalized[last] === target) idx = last;
+    } else {
+      idx = searchFrom(0);
+    }
+    if (idx < 0) idx = searchFrom(0);
+    if (idx < 0) return null;
+    this.#lastSentenceListIndex = idx;
+    return {
+      prev: idx > 0 ? sentences[idx - 1]! : null,
+      current: markText,
+      next: idx + 1 < sentences.length ? sentences[idx + 1]! : null,
+    };
   }
 
   // Playing, but nothing audible yet: synthesis, network, decode, or a
