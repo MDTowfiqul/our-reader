@@ -22,7 +22,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useCloudSyncStatus } from '@/hooks/useCloudSyncStatus';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { useTransferQueue } from '@/hooks/useTransferQueue';
-import { navigateToLogin, navigateToProfile } from '@/utils/nav';
+import { navigateToProfile } from '@/utils/nav';
+import { runGoogleDriveConnect } from '@/services/sync/providers/gdrive/googleDriveConnect';
+import { persistCloudProviderEnabled } from '@/components/settings/integrations/cloudSync';
+import { eventDispatcher } from '@/utils/event';
 import { canToggleFullScreen, tauriHandleSetAlwaysOnTop, toggleFullScreen } from '@/utils/window';
 import { setAboutDialogVisible } from '@/components/AboutWindow';
 import { setMigrateDataDirDialogVisible } from '@/app/library/components/MigrateDataWindow';
@@ -53,7 +56,8 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
   const { user } = useAuth();
   const { quotas } = useQuotaStats(true);
   const { themeMode, setThemeMode } = useThemeStore();
-  const { settings, setSettingsDialogOpen } = useSettingsStore();
+  const { settings, setSettingsDialogOpen, setRequestedPanel, setRequestedSubPage } =
+    useSettingsStore();
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(settings.alwaysOnTop);
   const [isAlwaysShowStatusBar, setIsAlwaysShowStatusBar] = useState(settings.alwaysShowStatusBar);
   const [isOpenLastBooks, setIsOpenLastBooks] = useState(settings.openLastBooks);
@@ -112,9 +116,31 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
     setIsDropdownOpen?.(false);
   };
 
-  const handleUserLogin = () => {
-    navigateToLogin(router);
+  // Our Reader fork: there is no Readest Cloud account, so the menu sign-in
+  // starts Google Drive login directly. On web this redirects to Google and
+  // the /gdrive-callback route switches Drive on; on native it returns the
+  // account label, which we stamp here. When Drive is already on, it opens
+  // the Google Drive settings page instead.
+  const handleDriveSignIn = async () => {
     setIsDropdownOpen?.(false);
+    if (settings.googleDrive?.enabled) {
+      setRequestedPanel('Integrations');
+      setRequestedSubPage('gdrive');
+      setSettingsDialogOpen(true);
+      return;
+    }
+    try {
+      const { accountLabel } = await runGoogleDriveConnect();
+      if (accountLabel) {
+        await persistCloudProviderEnabled(envConfig, 'gdrive', true, (s) => ({
+          ...s,
+          googleDrive: { ...s.googleDrive, accountLabel },
+        }));
+      }
+    } catch (e) {
+      console.warn('[gdrive] connect failed', e);
+      eventDispatcher.dispatch('toast', { type: 'error', message: _('Failed to connect') });
+    }
   };
 
   const handleUserProfile = () => {
@@ -365,7 +391,11 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
           </ul>
         </MenuItem>
       ) : (
-        <MenuItem label={_('Sign In')} Icon={PiUserCircle} onClick={handleUserLogin}></MenuItem>
+        <MenuItem
+          label={settings.googleDrive?.enabled ? _('Google Drive') : _('Sign In')}
+          Icon={settings.googleDrive?.enabled ? PiUserCircleCheck : PiUserCircle}
+          onClick={handleDriveSignIn}
+        ></MenuItem>
       )}
 
       {isTauriAppPlatform() && (
