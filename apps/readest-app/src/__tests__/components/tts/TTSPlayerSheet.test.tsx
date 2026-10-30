@@ -651,10 +651,13 @@ describe('TTSPlayerSheet', () => {
     const props = makeProps();
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
-    await waitFor(() => screen.getByText('Test voice'));
-    fireEvent.click(screen.getByText('Test voice'));
+    await waitFor(() => screen.getByText('test voice'));
+    fireEvent.click(screen.getByText('test voice'));
     expect(speak).toHaveBeenCalledTimes(1);
-    expect(cancel).toHaveBeenCalled();
+    // Starting a sample must not cancel: book playback shares this queue,
+    // and cancelling would kill it. The sample queues behind the sentence
+    // currently playing instead.
+    expect(cancel).not.toHaveBeenCalled();
   });
 
   test('empty voice list explains why and offers device settings', async () => {

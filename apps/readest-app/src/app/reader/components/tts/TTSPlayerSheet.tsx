@@ -269,14 +269,18 @@ const TTSPlayerSheet = ({
   }, [isOpen]);
 
   // A test sample is a stray utterance, not book audio: stop it whenever
-  // the sheet closes or the reader leaves the voice view.
+  // the sheet closes or the reader leaves the voice view. This must be
+  // gated on a sample actually playing: book playback shares the same
+  // speechSynthesis queue, and an ungated cancel() here killed the book
+  // audio every time the panel was opened or closed while playing.
   useEffect(() => {
+    if (!testingVoice) return;
     if (isOpen && view === 'voice') return;
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setTestingVoice(false);
-  }, [isOpen, view]);
+  }, [isOpen, view, testingVoice]);
 
   // Opened while the clients initialized: pick up the voice once they are
   // ready, without leaving the view the user is on.
@@ -365,7 +369,9 @@ const TTSPlayerSheet = ({
   // The Settings dialog is mounted in reader context (ReaderContent), so
   // drilling it to the TTS panel from the sheet works through the store.
   const handleOpenDeviceSettings = () => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
+    // Only stop a running test sample; book audio shares this queue and
+    // must keep playing while the user opens Settings.
+    if (testingVoice && typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
     setTestingVoice(false);
@@ -406,7 +412,9 @@ const TTSPlayerSheet = ({
     utterance.rate = rate;
     utterance.onend = () => setTestingVoice(false);
     utterance.onerror = () => setTestingVoice(false);
-    synth.cancel();
+    // No cancel() before speaking: book playback shares this queue, and
+    // cancelling would kill it. The sample simply queues behind the
+    // sentence currently playing, then book playback continues.
     synth.speak(utterance);
     setTestingVoice(true);
   };
@@ -782,13 +790,24 @@ const TTSPlayerSheet = ({
       {view === 'voice' && (
         <div className='flex w-full flex-col pb-4'>
           <div className='flex flex-col gap-2 px-2 pb-2'>
-            <button
-              type='button'
-              onClick={handleOpenDeviceSettings}
-              className='btn btn-sm btn-contrast eink-bordered self-start'
-            >
-              {_('Device TTS settings')}
-            </button>
+            <div className='flex items-center gap-2'>
+              {canTestSelectedVoice && (
+                <button
+                  type='button'
+                  onClick={handleTestVoice}
+                  className='btn btn-sm btn-contrast eink-bordered'
+                >
+                  {testingVoice ? _('Stop sample') : _('test voice')}
+                </button>
+              )}
+              <button
+                type='button'
+                onClick={handleOpenDeviceSettings}
+                className='btn btn-sm btn-contrast eink-bordered ms-auto'
+              >
+                {_('Device TTS settings')}
+              </button>
+            </div>
             <input
               type='search'
               value={voiceSearch}
@@ -797,15 +816,6 @@ const TTSPlayerSheet = ({
               aria-label={_('Search voices or languages')}
               className='input input-sm eink-bordered w-full'
             />
-            {canTestSelectedVoice && (
-              <button
-                type='button'
-                onClick={handleTestVoice}
-                className='btn btn-sm btn-contrast eink-bordered self-start'
-              >
-                {testingVoice ? _('Stop sample') : _('Test voice')}
-              </button>
-            )}
           </div>
           {voiceGroups.length === 1 && voiceGroups[0]?.id === 'no-voices' && (
             <div className='flex flex-col gap-2 px-2 pb-2'>
