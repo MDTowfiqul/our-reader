@@ -250,6 +250,11 @@ const TTSPlayerSheet = ({
   // frame after opening; `unavailable` only pulls it back for the sections that
   // genuinely have no sheet to show (empty, or too long to render).
   const showLyrics = supportsLyrics && !lyrics.unavailable;
+  // The device-TTS sentence preview below: when it is showing, the panel
+  // borrows the lyric layout (thumbnail header, tall sheet, text filling
+  // the space) so it reads like the real lyric view instead of a small
+  // box squeezed under a big cover.
+  const showSentencePreview = !showLyrics && !!currentSentenceText;
   // Re-read when the loop changes or the sheet moves to another section.
   const loopRange = useMemo(
     () => (loopState === 'off' ? null : onGetLyricLoopRange()),
@@ -516,7 +521,7 @@ const TTSPlayerSheet = ({
       isOpen={isOpen}
       // The lyric sheet needs room to read as one: at the cover player's 0.65
       // it collapses to two or three visible lines.
-      snapHeight={showLyrics ? 0.8 : 0.65}
+      snapHeight={showLyrics || showSentencePreview ? 0.8 : 0.65}
       title={_('Read Aloud')}
       header={header}
       // The voice list keeps one height, so folding a group never resizes the
@@ -539,7 +544,8 @@ const TTSPlayerSheet = ({
             // The lyric sheet is the one element here that can take whatever
             // height is left, so it claims it — and the transport below stays
             // put instead of being pushed into a scroll.
-            showLyrics && (resize.sized ? 'h-full' : 'h-full sm:h-auto'),
+            (showLyrics || showSentencePreview) &&
+              (resize.sized ? 'h-full' : 'h-full sm:h-auto'),
           )}
         >
           {/* With lyrics the artwork steps aside into a thumbnail row so the
@@ -548,7 +554,9 @@ const TTSPlayerSheet = ({
           <div
             className={clsx(
               'flex w-full min-w-0',
-              showLyrics ? 'flex-row items-center gap-3' : 'flex-col items-center gap-4',
+              showLyrics || showSentencePreview
+                ? 'flex-row items-center gap-3'
+                : 'flex-col items-center gap-4',
             )}
           >
             {coverImage && (
@@ -558,7 +566,7 @@ const TTSPlayerSheet = ({
                 alt=''
                 className={clsx(
                   'not-eink:shadow-lg eink-bordered w-auto shrink-0 rounded-xl object-cover',
-                  showLyrics ? 'h-12' : 'h-32',
+                  showLyrics || showSentencePreview ? 'h-12' : 'h-32',
                 )}
                 onError={() => setCoverFailed(true)}
               />
@@ -566,7 +574,9 @@ const TTSPlayerSheet = ({
             <div
               className={clsx(
                 'flex min-w-0 flex-col gap-0.5',
-                showLyrics ? 'flex-1 items-start text-start' : 'w-full items-center text-center',
+                showLyrics || showSentencePreview
+                ? 'flex-1 items-start text-start'
+                : 'w-full items-center text-center',
               )}
             >
               <span className='line-clamp-1 w-full font-semibold'>{book?.title ?? ''}</span>
@@ -603,14 +613,18 @@ const TTSPlayerSheet = ({
             )}
           </div>
           {/* No media clock, no lyric view: show the sentence being
-              spoken instead, so the cover player is not textless. It
-              updates per sentence via the hook's speak-mark subscription,
-              scrolls inside the sheet (max-h-40) instead of pushing the
-              transport off-screen, and vanishes when playback stops (the
-              hook clears it) or when the lyric view is available. */}
-          {!showLyrics && currentSentenceText && (
-            <div className='eink-bordered max-h-40 w-full overflow-y-auto rounded-xl px-3 py-2'>
-              <p className='font-serif text-base leading-relaxed'>{currentSentenceText}</p>
+              spoken instead, styled as the lyric view's active line
+              (soft background, centred, large serif, semibold) and given
+              the space, so it reads like the real thing rather than a
+              small box under a big cover. It updates per sentence via
+              the hook's speak-mark subscription, and vanishes when
+              playback stops (the hook clears it) or when the lyric
+              view is available. */}
+          {showSentencePreview && (
+            <div className='flex w-full flex-1 items-center justify-center overflow-y-auto px-2 py-2'>
+              <p className='not-eink:bg-base-200 eink-bordered rounded-xl px-6 py-4 text-center font-serif text-xl font-semibold leading-relaxed'>
+                {currentSentenceText}
+              </p>
             </div>
           )}
           {showLyrics && (
