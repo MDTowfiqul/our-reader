@@ -7,6 +7,7 @@ import { useEnv } from '@/context/EnvContext';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { NotebookTab } from '@/store/notebookStore';
+import { hasAnyAIKey } from '@/services/ai/customProviders';
 
 interface NotebookTabNavigationProps {
   activeTab: NotebookTab;
@@ -21,7 +22,8 @@ const NotebookTabNavigation: React.FC<NotebookTabNavigationProps> = ({
   const { appService } = useEnv();
   const { settings } = useSettingsStore();
   const aiEnabled = settings?.aiSettings?.enabled ?? false;
-  const hasSummaryKey = !!settings?.aiSettings?.openrouterApiKey;
+  // Summary needs any AI key: a custom provider key or the OpenRouter key.
+  const hasSummaryKey = !!settings?.aiSettings && hasAnyAIKey(settings.aiSettings);
 
   // Summary needs only an OpenRouter key, not the AI chat toggle; the
   // panel itself explains the missing key when there is none.

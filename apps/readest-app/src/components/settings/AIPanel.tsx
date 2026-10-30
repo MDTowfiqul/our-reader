@@ -11,7 +11,8 @@ import {
   type OpenRouterModelInfo,
 } from '@/services/ai/providers/OpenRouterProvider';
 import { DEFAULT_AI_SETTINGS, GATEWAY_MODELS, MODEL_PRICING } from '@/services/ai/constants';
-import type { AISettings, AIProviderName } from '@/services/ai/types';
+import type { AISettings, AIProviderName, CustomAIProvider } from '@/services/ai/types';
+import { getCustomProviders } from '@/services/ai/customProviders';
 import { exportReedyMetricsBundle } from '@/services/reedy/instrumentation';
 import { isTauriAppPlatform } from '@/services/environment';
 import { BoxedList, SettingLabel, SettingsRow, SettingsSwitchRow } from './primitives';
@@ -141,6 +142,70 @@ const AIPanel: React.FC = () => {
     },
     [envConfig, setSettings, saveSettings],
   );
+
+  // ---- User AI providers (Add Provider dialog pattern) ----
+  const [providers, setProviders] = useState<CustomAIProvider[]>(() =>
+    getCustomProviders(aiSettings),
+  );
+  const [editingProvider, setEditingProvider] = useState<CustomAIProvider | null>(null);
+  const [customPrompt, setCustomPrompt] = useState(aiSettings.customSystemPrompt ?? '');
+
+  const saveProviders = useCallback(
+    async (next: CustomAIProvider[]) => {
+      setProviders(next);
+      await saveAiSetting('customProviders', next);
+    },
+    [saveAiSetting],
+  );
+
+  const providerDefaults = (type: CustomAIProvider['type']) => {
+    switch (type) {
+      case 'google':
+        return {
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+          apiPath: '/chat/completions',
+          model: 'gemini-2.5-flash',
+        };
+      case 'claude':
+        return {
+          baseUrl: 'https://api.anthropic.com',
+          apiPath: '/v1/messages',
+          model: 'claude-sonnet-4-5',
+        };
+      case 'openai':
+      default:
+        return {
+          baseUrl: 'https://api.openai.com/v1',
+          apiPath: '/chat/completions',
+          model: 'gpt-4o-mini',
+        };
+    }
+  };
+
+  const startAddProvider = () => {
+    const defaults = providerDefaults('openai');
+    setEditingProvider({
+      id: `custom-${Date.now()}`,
+      type: 'openai',
+      name: '',
+      apiKey: '',
+      enabled: true,
+      ...defaults,
+    });
+  };
+
+  const saveEditingProvider = async () => {
+    if (!editingProvider || !editingProvider.name.trim()) return;
+    const next = providers.some((p) => p.id === editingProvider.id)
+      ? providers.map((p) => (p.id === editingProvider.id ? editingProvider : p))
+      : [...providers, editingProvider];
+    await saveProviders(next);
+    // First provider added becomes the active one; otherwise keep the pick.
+    if (!aiSettings.activeCustomProviderId) {
+      await saveAiSetting('activeCustomProviderId', editingProvider.id);
+    }
+    setEditingProvider(null);
+  };
 
   const fetchOllamaModels = useCallback(async () => {
     if (!ollamaUrl || !enabled) return;
@@ -287,6 +352,14 @@ const AIPanel: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openrouterEmbeddingModel]);
+
+  useEffect(() => {
+    if (!isMounted.current) return;
+    if (customPrompt !== (aiSettings.customSystemPrompt ?? '')) {
+      saveAiSetting('customSystemPrompt', customPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customPrompt]);
 
   // Get the effective model ID to use (either selected or custom)
   const getEffectiveModelId = useCallback(() => {
@@ -741,6 +814,187 @@ const AIPanel: React.FC = () => {
           </div>
         </BoxedList>
       )}
+
+      <BoxedList
+        title={_('Providers')}
+        description={_(
+          'Your own AI providers for summaries and book chat. Gemini is pre-added — enter its API key to use it. The selected provider is the one AI features use.',
+        )}
+        className={disabledSection}
+      >
+        {providers.map((p) => (
+          <div key={p.id} className='flex min-h-14 items-center justify-between gap-3 pe-4'>
+            <div className='flex min-w-0 items-center gap-3'>
+              <input
+                type='radio'
+                name='ai-custom-provider'
+                className='radio shrink-0'
+                checked={(aiSettings.activeCustomProviderId ?? providers[0]?.id) === p.id}
+                onChange={() => void saveAiSetting('activeCustomProviderId', p.id)}
+                disabled={!enabled}
+                aria-label={_('Use {{name}} for AI features', { name: p.name })}
+              />
+              <div className='flex min-w-0 flex-col gap-0.5'>
+                <SettingLabel>{p.name}</SettingLabel>
+                <span className='text-base-content/60 text-xs'>
+                  {p.type === 'google' ? 'Google' : p.type === 'claude' ? 'Claude' : 'OpenAI'}
+                  {' · '}
+                  {p.model || _('No model set')}
+                  {!p.apiKey && ` · ${_('Needs an API key')}`}
+                  {!p.enabled && ` · ${_('Disabled')}`}
+                </span>
+              </div>
+            </div>
+            <div className='flex shrink-0 gap-2'>
+              <button
+                className='btn btn-outline btn-sm'
+                onClick={() => setEditingProvider({ ...p })}
+                disabled={!enabled}
+              >
+                {_('Edit')}
+              </button>
+              <button
+                className='btn btn-ghost btn-sm eink-bordered'
+                onClick={() => void saveProviders(providers.filter((x) => x.id !== p.id))}
+                disabled={!enabled}
+              >
+                {_('Delete')}
+              </button>
+            </div>
+          </div>
+        ))}
+        <div className='flex min-h-14 items-center justify-between gap-3 pe-4'>
+          <button className='btn btn-outline btn-sm' onClick={startAddProvider} disabled={!enabled}>
+            {_('Add Provider')}
+          </button>
+        </div>
+        {editingProvider && (
+          <div className='flex flex-col gap-3 border-t border-base-300 py-3 pe-4'>
+            <div className='flex gap-2'>
+              {(['openai', 'google', 'claude'] as const).map((type) => (
+                <button
+                  key={type}
+                  type='button'
+                  onClick={() =>
+                    setEditingProvider({
+                      ...editingProvider,
+                      type,
+                      ...providerDefaults(type),
+                    })
+                  }
+                  className={`btn btn-sm ${editingProvider.type === type ? 'btn-contrast' : 'btn-ghost eink-bordered'}`}
+                >
+                  {type === 'google' ? 'Google' : type === 'claude' ? 'Claude' : 'OpenAI'}
+                </button>
+              ))}
+            </div>
+            <div className='flex flex-col gap-2'>
+              <SettingLabel>{_('Name')}</SettingLabel>
+              <input
+                type='text'
+                className='input input-sm eink-bordered w-full'
+                value={editingProvider.name}
+                onChange={(e) => setEditingProvider({ ...editingProvider, name: e.target.value })}
+                placeholder={editingProvider.type === 'google' ? 'Gemini' : 'My provider'}
+              />
+            </div>
+            <div className='flex flex-col gap-2'>
+              <SettingLabel>{_('API Key')}</SettingLabel>
+              <input
+                type='password'
+                className='input input-sm eink-bordered w-full'
+                value={editingProvider.apiKey}
+                onChange={(e) => setEditingProvider({ ...editingProvider, apiKey: e.target.value })}
+                autoComplete='off'
+              />
+            </div>
+            <div className='flex flex-col gap-2'>
+              <SettingLabel>{_('API Base URL')}</SettingLabel>
+              <input
+                type='text'
+                className='input input-sm eink-bordered w-full'
+                value={editingProvider.baseUrl}
+                onChange={(e) =>
+                  setEditingProvider({ ...editingProvider, baseUrl: e.target.value })
+                }
+              />
+            </div>
+            <div className='flex flex-col gap-2'>
+              <SettingLabel>{_('API Path')}</SettingLabel>
+              <input
+                type='text'
+                className='input input-sm eink-bordered w-full'
+                value={editingProvider.apiPath}
+                onChange={(e) =>
+                  setEditingProvider({ ...editingProvider, apiPath: e.target.value })
+                }
+              />
+              <span className='text-base-content/60 text-xs'>
+                {_('OpenAI-compatible chat path, e.g. /chat/completions.')}
+              </span>
+            </div>
+            <div className='flex flex-col gap-2'>
+              <SettingLabel>{_('Model')}</SettingLabel>
+              <input
+                type='text'
+                className='input input-sm eink-bordered w-full'
+                value={editingProvider.model}
+                onChange={(e) => setEditingProvider({ ...editingProvider, model: e.target.value })}
+              />
+            </div>
+            <SettingsSwitchRow
+              label={_('Enable')}
+              checked={editingProvider.enabled}
+              onChange={() =>
+                setEditingProvider({ ...editingProvider, enabled: !editingProvider.enabled })
+              }
+            />
+            <div className='flex gap-2'>
+              <button
+                className='btn btn-contrast btn-sm'
+                onClick={() => void saveEditingProvider()}
+                disabled={!editingProvider.name.trim()}
+              >
+                {providers.some((p) => p.id === editingProvider.id) ? _('Save') : _('Add')}
+              </button>
+              <button
+                className='btn btn-ghost btn-sm eink-bordered'
+                onClick={() => setEditingProvider(null)}
+              >
+                {_('Cancel')}
+              </button>
+            </div>
+          </div>
+        )}
+      </BoxedList>
+
+      <BoxedList
+        title={_('Custom instruction')}
+        description={_(
+          'An instruction of your own that is added to every AI summary and book-chat reply, e.g. “Answer in simple Bengali”. Leave it empty for the default behaviour.',
+        )}
+        className={disabledSection}
+      >
+        <div className='flex flex-col gap-2 py-3 pe-4'>
+          <textarea
+            className='textarea textarea-sm eink-bordered w-full'
+            rows={3}
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            disabled={!enabled}
+            placeholder={_('Optional custom instruction for the AI…')}
+          />
+          <div className='flex justify-end'>
+            <button
+              className='btn btn-ghost btn-sm eink-bordered'
+              onClick={() => setCustomPrompt('')}
+              disabled={!enabled || !customPrompt}
+            >
+              {_('Reset to default')}
+            </button>
+          </div>
+        </div>
+      </BoxedList>
 
       <BoxedList
         title={_('Reedy Retrieval (Beta)')}

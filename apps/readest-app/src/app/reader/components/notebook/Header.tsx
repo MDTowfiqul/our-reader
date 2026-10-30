@@ -11,7 +11,9 @@ const NotebookHeader: React.FC<{
   isFullScreenMobile?: boolean;
   handleClose: () => void;
   handleTogglePin: () => void;
-}> = ({ isPinned, isFullScreenMobile = false, handleClose, handleTogglePin }) => {
+  /** 'ai' shows the 'AI' title; every other tab keeps 'Notebook'. */
+  activeTab?: string;
+}> = ({ isPinned, isFullScreenMobile = false, handleClose, handleTogglePin, activeTab }) => {
   const _ = useTranslation();
   const iconSize15 = useResponsiveSize(15);
   const iconSize18 = useResponsiveSize(18);
@@ -19,7 +21,9 @@ const NotebookHeader: React.FC<{
     <div className='notebook-header relative flex h-11 items-center px-3' dir='ltr'>
       <div className='absolute inset-0 z-[-1] flex items-center justify-center space-x-2'>
         <RiQuillPenLine size={iconSize18} />
-        <div className='notebook-title text-sm font-medium'>{_('Notebook')}</div>
+        <div className='notebook-title text-sm font-medium'>
+          {activeTab === 'ai' ? _('AI') : _('Notebook')}
+        </div>
       </div>
       <div className='flex w-full items-center gap-x-4'>
         <button

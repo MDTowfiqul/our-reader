@@ -14,9 +14,33 @@ export interface AIProvider {
   healthCheck(): Promise<boolean>;
 }
 
+/** A user-added AI provider (Settings → AI → Providers), modelled on the
+ * standard Add Provider dialog: type, name, key, base URL, path, model,
+ * enable toggle. 'openai' and 'google' speak the OpenAI chat-completions
+ * shape; 'claude' speaks Anthropic's messages API. */
+export type CustomAIProviderType = 'openai' | 'google' | 'claude';
+
+export interface CustomAIProvider {
+  id: string;
+  type: CustomAIProviderType;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  apiPath: string;
+  model: string;
+  enabled: boolean;
+}
+
 export interface AISettings {
   enabled: boolean;
   provider: AIProviderName;
+
+  /** User-added providers; when absent, callers fall back to the seeded Gemini entry. */
+  customProviders?: CustomAIProvider[];
+  /** Id of the provider AI features (summaries, book chat) use. */
+  activeCustomProviderId?: string;
+  /** User-supplied system instruction prepended to AI prompts; empty = none. */
+  customSystemPrompt?: string;
 
   ollamaBaseUrl: string;
   ollamaModel: string;

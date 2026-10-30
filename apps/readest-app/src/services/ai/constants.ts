@@ -34,6 +34,23 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
   openrouterModel: '',
   openrouterEmbeddingModel: '',
 
+  // Seeded provider: usable the moment its API key is entered. Google's
+  // OpenAI-compatible endpoint, so it speaks the chat-completions shape.
+  customProviders: [
+    {
+      id: 'gemini-default',
+      type: 'google',
+      name: 'Gemini',
+      apiKey: '',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      apiPath: '/chat/completions',
+      model: 'gemini-2.5-flash',
+      enabled: true,
+    },
+  ],
+  activeCustomProviderId: 'gemini-default',
+  customSystemPrompt: '',
+
   spoilerProtection: true,
   maxContextChunks: 10,
   indexingMode: 'on-demand',

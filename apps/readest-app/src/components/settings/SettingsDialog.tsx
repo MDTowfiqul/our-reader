@@ -121,10 +121,11 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       label: _('Integrations'),
     },
     {
+      // Our Reader: the AI tab is visible in production too — the user's
+      // own keys live in Settings → AI and need no server.
       tab: 'AI',
       icon: PiRobot,
       label: _('AI Assistant'),
-      disabled: process.env.NODE_ENV === 'production',
     },
     {
       tab: 'TTS',

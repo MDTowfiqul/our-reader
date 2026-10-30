@@ -25,6 +25,8 @@ import {
   useNotebookDocumentCoordinator,
 } from '../../hooks/useNotebookDocumentCoordinator';
 import AIAssistant from './AIAssistant';
+import BookChat from './BookChat';
+import { getActiveCustomProvider } from '@/services/ai/customProviders';
 import SummaryPanel from './SummaryPanel';
 import NotebookHeader from './Header';
 import NotebookEditor from './NotebookEditor';
@@ -258,6 +260,7 @@ const Notebook: React.FC = () => {
             </div>
           )}
           <NotebookHeader
+            activeTab={notebookActiveTab}
             isPinned={isNotebookPinned}
             isFullScreenMobile={isMobile && isFullHeightInMobile}
             handleClose={hideNotebook}
@@ -266,7 +269,19 @@ const Notebook: React.FC = () => {
         </div>
         {notebookActiveTab === 'ai' ? (
           <div className='flex min-h-0 flex-1 flex-col'>
-            <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
+            {(() => {
+              // A custom provider with a key takes the lightweight book
+              // chat (the AI answers as the book); otherwise the existing
+              // retrieval assistant stays exactly as it was.
+              const active = settings?.aiSettings
+                ? getActiveCustomProvider(settings.aiSettings)
+                : null;
+              return active && active.enabled && active.apiKey.trim() ? (
+                <BookChat bookKey={sideBarBookKey} />
+              ) : (
+                <AIAssistant key={activeConversationId ?? 'new'} bookKey={sideBarBookKey} />
+              );
+            })()}
           </div>
         ) : notebookActiveTab === 'summary' ? (
           <div className='flex min-h-0 flex-1 flex-col'>

@@ -1,5 +1,4 @@
-import { generateText } from 'ai';
-import { OpenRouterProvider } from './providers/OpenRouterProvider';
+import { chatWithAI, summaryRouteId } from './customProviders';
 import type { AISettings } from './types';
 
 /**
@@ -70,14 +69,10 @@ function hashText(text: string): string {
   return Math.abs(hash).toString(36);
 }
 
-function cacheKey(req: SummaryRequest, inputHash: string): string {
-  return [
-    req.bookHash,
-    req.kind,
-    req.sectionIndex ?? '',
-    req.language,
-    inputHash,
-  ].join('|');
+function cacheKey(req: SummaryRequest, inputHash: string, routeId = ''): string {
+  return [req.bookHash, req.kind, req.sectionIndex ?? '', req.language, routeId, inputHash].join(
+    '|',
+  );
 }
 
 function readCache(): Record<string, string> {
@@ -115,31 +110,18 @@ function splitText(text: string, size: number): string[] {
   return chunks.filter(Boolean);
 }
 
-async function callModel(
-  settings: AISettings,
-  system: string,
-  prompt: string,
-): Promise<string> {
-  if (!settings.openrouterApiKey) {
-    throw new Error('OPENROUTER_KEY_MISSING');
-  }
-  const provider = new OpenRouterProvider({ ...settings, provider: 'openrouter' });
-  const { text } = await generateText({
-    model: provider.getModel(),
-    system,
-    prompt,
-  });
-  return text.trim();
+async function callModel(settings: AISettings, system: string, prompt: string): Promise<string> {
+  // The user's custom system instruction, when set, frames every call.
+  const custom = (settings.customSystemPrompt || '').trim();
+  const fullSystem = custom ? `${custom}\n\n${system}` : system;
+  return chatWithAI(settings, fullSystem, [{ role: 'user', content: prompt }]);
 }
 
 /** Summarise one passage of text (a chapter, or a user selection). */
-export async function summarizeText(
-  req: SummaryRequest,
-  settings: AISettings,
-): Promise<string> {
+export async function summarizeText(req: SummaryRequest, settings: AISettings): Promise<string> {
   const text = (req.text || '').trim();
   if (!text) throw new Error('No text to summarise');
-  const key = cacheKey(req, hashText(text));
+  const key = cacheKey(req, hashText(text), summaryRouteId(settings));
   const cached = readCache()[key];
   if (cached) return cached;
 
@@ -185,7 +167,7 @@ export async function summarizeBookFromChapters(
 ): Promise<string> {
   const joined = chapterSummaries.filter(Boolean).join('\n\n');
   if (!joined) throw new Error('No chapter summaries to combine');
-  const key = cacheKey(req, hashText(joined));
+  const key = cacheKey(req, hashText(joined), summaryRouteId(settings));
   const cached = readCache()[key];
   if (cached) return cached;
   const summary = await callModel(
@@ -202,10 +184,7 @@ export async function summarizeBookFromChapters(
  * (the existing spoiler rule from prompts.ts, applied here without the
  * chat backend). Passages beyond the current page are dropped, never sent.
  */
-export async function summarizeSoFar(
-  req: SummaryRequest,
-  settings: AISettings,
-): Promise<string> {
+export async function summarizeSoFar(req: SummaryRequest, settings: AISettings): Promise<string> {
   const currentPage = req.currentPage ?? 0;
   const allowed = (req.passages || [])
     .filter((p) => currentPage <= 0 || p.page <= currentPage)
@@ -213,7 +192,7 @@ export async function summarizeSoFar(
     .join('\n\n');
   if (!allowed.trim()) throw new Error('No passages read so far to summarise');
   const trimmed = allowed.slice(0, SO_FAR_CHARS);
-  const key = cacheKey(req, hashText(trimmed));
+  const key = cacheKey(req, hashText(trimmed), summaryRouteId(settings));
   const cached = readCache()[key];
   if (cached) return cached;
   const summary = await callModel(

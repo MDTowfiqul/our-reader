@@ -6,6 +6,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useBookDataStore } from '@/store/bookDataStore';
 import { useBookProgress } from '@/store/readerProgressStore';
+import { hasAnyAIKey } from '@/services/ai/customProviders';
 import { extractTextFromDocument } from '@/services/ai/utils/chunker';
 import {
   SUMMARY_DISCLAIMER,
@@ -47,6 +48,9 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
 
   const [language, setLanguage] = useState<SummaryLanguage>('book');
   const [kind, setKind] = useState<SummaryKind>('chapter');
+  // Chapter picker: defaults to the chapter being read; the user can pick
+  // any other chapter from the book's index instead.
+  const [pickedChapter, setPickedChapter] = useState<number | null>(null);
   const [summary, setSummary] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [progressText, setProgressText] = useState('');
@@ -56,7 +60,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
   const bookTitle = bookData?.book?.title || 'Unknown';
   const authorName = bookData?.book?.author || '';
   const aiSettings = settings?.aiSettings;
-  const hasKey = !!aiSettings?.openrouterApiKey;
+  const hasKey = !!aiSettings && hasAnyAIKey(aiSettings);
 
   const getSectionText = useCallback(
     async (sectionIndex: number): Promise<string> => {
@@ -104,13 +108,11 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
             });
           }
         }
-        setSummary(
-          await summarizeSoFar({ ...base, kind, passages, currentPage }, aiSettings),
-        );
+        setSummary(await summarizeSoFar({ ...base, kind, passages, currentPage }, aiSettings));
         return;
       }
       if (kind === 'chapter') {
-        const sectionIndex = progress?.section?.current ?? 0;
+        const sectionIndex = pickedChapter ?? progress?.section?.current ?? 0;
         const toc = (bookData?.bookDoc?.toc || []) as { id: number; label: string }[];
         const text = await getSectionText(sectionIndex);
         if (!text) {
@@ -136,10 +138,12 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
       const toc = (bookData?.bookDoc?.toc || []) as { id: number; label: string }[];
       const chapterSummaries: string[] = [];
       for (let i = 0; i < sections.length; i++) {
-        setProgressText(_('Summarising chapter {{current}} of {{total}}…', {
-          current: i + 1,
-          total: sections.length,
-        }));
+        setProgressText(
+          _('Summarising chapter {{current}} of {{total}}…', {
+            current: i + 1,
+            total: sections.length,
+          }),
+        );
         const text = await getSectionText(i);
         if (!text) continue;
         chapterSummaries.push(
@@ -156,9 +160,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
         );
       }
       setProgressText('');
-      setSummary(
-        await summarizeBookFromChapters({ ...base, kind }, chapterSummaries, aiSettings),
-      );
+      setSummary(await summarizeBookFromChapters({ ...base, kind }, chapterSummaries, aiSettings));
     } catch (e) {
       setError((e as Error).message || _('Summarising failed.'));
     } finally {
@@ -175,6 +177,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
     progress,
     bookData?.bookDoc,
     getSectionText,
+    pickedChapter,
     _,
   ]);
 
@@ -183,7 +186,7 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
       <div className='flex h-full flex-col items-center justify-center gap-3 p-4 text-center'>
         <p className='text-foreground text-sm font-medium'>{_('AI summaries need a key')}</p>
         <p className='text-muted-foreground text-xs'>
-          {_('Add your own OpenRouter API key in Settings → AI, then come back here.')}
+          {_('Add an API key in Settings → AI, then come back here.')}
         </p>
       </div>
     );
@@ -222,6 +225,28 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
           <option value='en'>{'English'}</option>
         </select>
       </label>
+      {kind === 'chapter' && (
+        <label className='flex items-center gap-2 text-xs'>
+          <span>{_('Chapter')}</span>
+          <select
+            className='select select-sm select-bordered flex-1'
+            value={pickedChapter ?? progress?.section?.current ?? 0}
+            onChange={(e) => setPickedChapter(Number(e.target.value))}
+          >
+            {((bookData?.bookDoc?.sections || []) as unknown[]).map((_, i) => {
+              const toc = (bookData?.bookDoc?.toc || []) as {
+                id: number;
+                label: string;
+              }[];
+              return (
+                <option key={i} value={i}>
+                  {chapterTitleFor(toc, i)}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+      )}
       <Button onClick={handleSummarize} disabled={isLoading} size='sm' className='h-8 text-xs'>
         {isLoading && <Loader2Icon className='mr-1.5 size-3.5 animate-spin' />}
         {isLoading ? progressText || _('Summarising…') : _('Summarise')}
