@@ -51,6 +51,31 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     return () => synth.removeEventListener('voiceschanged', refresh);
   }, []);
 
+  const handleLoadVoices = () => {
+    const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
+    // Same nudge as the reader's device client: some phones only report
+    // their voices after the engine is used once. Silent, cancelled as
+    // soon as voices arrive; the voiceschanged listener above re-reads.
+    try {
+      const utterance = new SpeechSynthesisUtterance(' ');
+      utterance.volume = 0;
+      const stop = () => {
+        try {
+          synth.cancel();
+        } catch {
+          // Engine absent mid-load; nothing to cancel.
+        }
+        setVoices([...synth.getVoices()]);
+      };
+      synth.addEventListener('voiceschanged', stop, { once: true });
+      synth.speak(utterance);
+      setTimeout(stop, 1500);
+    } catch {
+      // No speech engine; the empty note stands.
+    }
+  };
+
   useEffect(() => {
     if (ttsRate === viewSettings.ttsRate) return;
     saveViewSettings(envConfig, bookKey, 'ttsRate', ttsRate, false, false);
@@ -87,11 +112,22 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     >
       <SettingsRow label={_('Voice')} data-setting-id='settings.tts.deviceVoice'>
         {!speechSupported || voices.length === 0 ? (
-          <p className='text-base-content/65 pe-4 text-sm leading-relaxed'>
-            {_(
-              'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
+          <div className='pe-4'>
+            <p className='text-base-content/65 text-sm leading-relaxed'>
+              {_(
+                'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
+              )}
+            </p>
+            {speechSupported && (
+              <button
+                type='button'
+                className='btn btn-contrast btn-sm eink-bordered mt-2'
+                onClick={handleLoadVoices}
+              >
+                {_('Load device voices')}
+              </button>
             )}
-          </p>
+          </div>
         ) : (
           <SettingsSelect
             value={selectedVoiceId}

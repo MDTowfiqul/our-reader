@@ -111,6 +111,37 @@ export class WebSpeechClient implements TTSClient {
     });
   }
 
+  // Chrome on Android sometimes reports no voices until the speech engine
+  // is actually used once. A silent utterance (volume 0, cancelled as soon
+  // as voices arrive) is the user-gesture-safe nudge that makes the engine
+  // report its voices; without it the picker can stay empty forever even
+  // though voices are installed. Guarded so a missing engine never throws.
+  #voiceLoadKicked = false;
+  #kickVoiceLoad() {
+    const synth = this.#synth;
+    if (!synth || this.#voiceLoadKicked || typeof SpeechSynthesisUtterance === 'undefined') {
+      return;
+    }
+    this.#voiceLoadKicked = true;
+    try {
+      const utterance = new SpeechSynthesisUtterance(' ');
+      utterance.volume = 0;
+      const stop = () => {
+        try {
+          synth.cancel();
+        } catch {
+          // Engine absent mid-load; nothing to cancel.
+        }
+        this.#refreshVoices();
+      };
+      synth.addEventListener('voiceschanged', stop, { once: true });
+      synth.speak(utterance);
+      setTimeout(stop, 1500);
+    } catch {
+      // No speech engine; the empty list stands.
+    }
+  }
+
   async init() {
     if (!this.#synth) {
       this.initialized = false;
@@ -142,6 +173,9 @@ export class WebSpeechClient implements TTSClient {
         populateVoices();
       } else if (this.#synth.onvoiceschanged !== undefined) {
         this.#synth.onvoiceschanged = populateVoices;
+        // Nudge the engine to report: without a first use, some phones
+        // never fire voiceschanged at all.
+        this.#kickVoiceLoad();
       } else {
         console.warn('Voiceschanged event not supported.');
         populateVoices();
@@ -261,6 +295,27 @@ export class WebSpeechClient implements TTSClient {
 
   async getVoices(lang: string) {
     this.#refreshVoices();
+    if (this.#voices.length === 0) {
+      // First open on a phone whose engine has not reported yet: nudge it
+      // and wait briefly for the voices to arrive instead of returning
+      // an empty picker on the spot.
+      this.#kickVoiceLoad();
+      await new Promise<void>((resolve) => {
+        const synth = this.#synth;
+        if (!synth) {
+          resolve();
+          return;
+        }
+        const done = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(done, 1200);
+        synth.addEventListener('voiceschanged', done, { once: true });
+      });
+      this.#refreshVoices();
+      this.#voiceLoadKicked = false;
+    }
     const locale = lang === 'en' ? getUserLocale(lang) || lang : lang;
     const isNotBlacklisted = (voice: SpeechSynthesisVoice) => {
       return (
