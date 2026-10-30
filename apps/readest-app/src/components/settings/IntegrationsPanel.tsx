@@ -727,7 +727,7 @@ const IntegrationsPanel: React.FC = () => {
             {/* Third-party providers are premium: every row carries the tier
                 badge; on a free plan the checkbox is disabled and opening a
                 row routes to the upgrade page instead of the config sub-page. */}
-            {false && (appService?.isDesktopApp ||
+            {(appService?.isDesktopApp ||
               appService?.isAndroidApp ||
               appService?.isIOSApp ||
               // Web: only when a Web-type GIS client id is configured for this build.
@@ -784,7 +784,8 @@ const IntegrationsPanel: React.FC = () => {
               toggleLabel={_('Sync with S3')}
             />
             )}
-            {(appService?.isDesktopApp ||
+            {false &&
+              (appService?.isDesktopApp ||
               appService?.isAndroidApp ||
               appService?.isIOSApp ||
               // Web: only when a Web-type Microsoft client id is configured for this build.
