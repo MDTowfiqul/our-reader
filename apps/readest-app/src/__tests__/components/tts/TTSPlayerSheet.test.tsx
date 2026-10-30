@@ -731,6 +731,18 @@ describe('TTSPlayerSheet', () => {
     expect(screen.queryByLabelText('Offline Audio')).toBeNull();
   });
 
+  test('now reading preview shows the current sentence when lyrics are unavailable', () => {
+    const props = makeProps({ currentSentenceText: 'This sentence is being read aloud.' });
+    render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
+  });
+
+  test('now reading preview is absent without a current sentence', () => {
+    const props = makeProps({ currentSentenceText: '' });
+    render(<TTSPlayerSheet {...props} />);
+    expect(screen.queryByText('This sentence is being read aloud.')).toBeNull();
+  });
+
   test('choosing the narrator records the per-book narration preference', async () => {
     const props = makeProps({ onGetVoices: vi.fn().mockResolvedValue(narrationGroups) });
     render(<TTSPlayerSheet {...props} />);

@@ -112,6 +112,11 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   // voice (a book's own narrator is a voice), so they are state rather than a
   // render-time probe: switching voices has to redraw the player.
   const [supportsLyrics, setSupportsLyrics] = useState(false);
+  // Sentence currently being spoken, for the player sheet's "now reading"
+  // preview on engines without a media clock (device TTS): the lyric view
+  // needs per-sentence timing, but the controller still broadcasts every
+  // spoken sentence via 'tts-speak-mark' (see the subscription below).
+  const [currentSentenceText, setCurrentSentenceText] = useState('');
   const [loopState, setLoopState] = useState<TTSLoopState>('off');
   const syncClientCapabilities = useCallback(() => {
     const controller = ttsControllerRef.current;
@@ -269,6 +274,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       setTtsController(null);
       setIsPlaying(false);
       setIsPaused(false);
+      setCurrentSentenceText('');
       setShowIndicator(false);
       setShowBackToCurrentTTSLocation(false);
       setTTSEnabled(bookKey, false);
@@ -655,6 +661,16 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       setTtsSectionIndex(sectionIndex);
     };
 
+    // The sentence text comes straight from the controller's speak-mark
+    // event: WebSpeechClient's speakWithMarks dispatches one mark per
+    // sentence (parseSSMLMarks text) right before speaking it. Empty
+    // details (seek/stop broadcasts) leave the current sentence alone;
+    // stopping clears it via the session-changed handler below.
+    const handleSpeakMark = (e: Event) => {
+      const text = (e as CustomEvent<{ text?: string }>).detail?.text;
+      if (text) setCurrentSentenceText(text);
+    };
+
     ttsController.addEventListener('tts-need-auth', handleNeedAuth);
     ttsController.addEventListener('tts-quota-exceeded', handleQuotaExceeded);
     ttsController.addEventListener('tts-highlight-mark', handleHighlightMark);
@@ -662,6 +678,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     ttsController.addEventListener('tts-position', handlePosition);
     ttsController.addEventListener('tts-state-change', handleStateChange);
     ttsController.addEventListener('tts-section-change', handleSectionIndexChange);
+    ttsController.addEventListener('tts-speak-mark', handleSpeakMark);
     // The controller may have initialized its section before this effect was
     // registered, so hydrate from the same canonical source as the event.
     setTtsSectionIndex(ttsController.getSectionIndex());
@@ -674,6 +691,10 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
       ttsController.removeEventListener('tts-position', handlePosition);
       ttsController.removeEventListener('tts-state-change', handleStateChange);
       ttsController.removeEventListener('tts-section-change', handleSectionIndexChange);
+      ttsController.removeEventListener('tts-speak-mark', handleSpeakMark);
+      // Detaching from a controller (session replaced/ended) must not leave
+      // a stale sentence displayed as "now reading".
+      setCurrentSentenceText('');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ttsController, bookKey]);
@@ -1440,6 +1461,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     handlePlayFromLyric,
     audioTransport,
     supportsLyrics,
+    currentSentenceText,
     buffering,
     refreshTtsLang,
     getController,

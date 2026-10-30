@@ -105,6 +105,10 @@ type TTSPlayerSheetProps = {
   // Lyric view (#5755). Present only when the engine aligns audio to the text;
   // supportsLyrics false keeps the cover player.
   supportsLyrics: boolean;
+  // Sentence currently being spoken (device TTS only: engines with a lyric
+  // view show their own transcript). Optional so existing callers/tests
+  // render without it; empty means "nothing to preview".
+  currentSentenceText?: string;
   // Playing, but nothing audible yet — the transport button wears a ring.
   buffering: boolean;
   onGetLyrics: () => Promise<TTSLyrics | null>;
@@ -150,6 +154,7 @@ const TTSPlayerSheet = ({
   onSeekPreview,
   onGetPlaybackInfo,
   supportsLyrics,
+  currentSentenceText,
   buffering,
   onGetLyrics,
   onGetActiveIndex,
@@ -597,6 +602,17 @@ const TTSPlayerSheet = ({
               </div>
             )}
           </div>
+          {/* No media clock, no lyric view: show the sentence being
+              spoken instead, so the cover player is not textless. It
+              updates per sentence via the hook's speak-mark subscription,
+              scrolls inside the sheet (max-h-40) instead of pushing the
+              transport off-screen, and vanishes when playback stops (the
+              hook clears it) or when the lyric view is available. */}
+          {!showLyrics && currentSentenceText && (
+            <div className='eink-bordered max-h-40 w-full overflow-y-auto rounded-xl px-3 py-2'>
+              <p className='font-serif text-base leading-relaxed'>{currentSentenceText}</p>
+            </div>
+          )}
           {showLyrics && (
             <TTSLyricsView
               fill={resize.sized}
