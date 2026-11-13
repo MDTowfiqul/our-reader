@@ -555,8 +555,7 @@ const TTSPlayerSheet = ({
             // The lyric sheet is the one element here that can take whatever
             // height is left, so it claims it — and the transport below stays
             // put instead of being pushed into a scroll.
-            (showLyrics || showSentencePreview) &&
-              (resize.sized ? 'h-full' : 'h-full sm:h-auto'),
+            (showLyrics || showSentencePreview) && (resize.sized ? 'h-full' : 'h-full sm:h-auto'),
           )}
         >
           {/* With lyrics the artwork steps aside into a thumbnail row so the
@@ -586,8 +585,8 @@ const TTSPlayerSheet = ({
               className={clsx(
                 'flex min-w-0 flex-col gap-0.5',
                 showLyrics || showSentencePreview
-                ? 'flex-1 items-start text-start'
-                : 'w-full items-center text-center',
+                  ? 'flex-1 items-start text-start'
+                  : 'w-full items-center text-center',
               )}
             >
               <span className='line-clamp-1 w-full font-semibold'>{book?.title ?? ''}</span>

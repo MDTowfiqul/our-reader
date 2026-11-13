@@ -13,6 +13,10 @@ import {
 import { DEFAULT_AI_SETTINGS, GATEWAY_MODELS, MODEL_PRICING } from '@/services/ai/constants';
 import type { AISettings, AIProviderName, CustomAIProvider } from '@/services/ai/types';
 import { getCustomProviders } from '@/services/ai/customProviders';
+import {
+  fetchCustomProviderModels,
+  type CustomProviderModelInfo,
+} from '@/services/ai/customProviderModels';
 import { exportReedyMetricsBundle } from '@/services/reedy/instrumentation';
 import { isTauriAppPlatform } from '@/services/environment';
 import { BoxedList, SettingLabel, SettingsRow, SettingsSwitchRow } from './primitives';
@@ -149,6 +153,49 @@ const AIPanel: React.FC = () => {
   );
   const [editingProvider, setEditingProvider] = useState<CustomAIProvider | null>(null);
   const [customPrompt, setCustomPrompt] = useState(aiSettings.customSystemPrompt ?? '');
+  // Models loaded for the provider being edited (Settings → AI → Providers).
+  const [editingProviderModels, setEditingProviderModels] = useState<CustomProviderModelInfo[]>([]);
+  const [editingProviderModelsLoading, setEditingProviderModelsLoading] = useState(false);
+  const [editingProviderModelsError, setEditingProviderModelsError] = useState('');
+
+  /** Open the edit form for a provider; a fresh form never shows a stale model list. */
+  const openEditingProvider = (provider: CustomAIProvider) => {
+    setEditingProvider({ ...provider });
+    setEditingProviderModels([]);
+    setEditingProviderModelsError('');
+  };
+
+  const loadEditingProviderModels = async () => {
+    if (!editingProvider || !editingProvider.apiKey.trim() || !editingProvider.baseUrl.trim()) {
+      return;
+    }
+    setEditingProviderModelsLoading(true);
+    setEditingProviderModelsError('');
+    try {
+      const models = await fetchCustomProviderModels({
+        type: editingProvider.type,
+        baseUrl: editingProvider.baseUrl,
+        apiKey: editingProvider.apiKey,
+      });
+      models.sort((a, b) => a.id.localeCompare(b.id));
+      setEditingProviderModels(models);
+    } catch (e) {
+      setEditingProviderModels([]);
+      setEditingProviderModelsError((e as Error).message || _('Failed to fetch models'));
+    } finally {
+      setEditingProviderModelsLoading(false);
+    }
+  };
+
+  /** Label for a loaded model: friendly name, then FREE or its $/M pricing. */
+  const formatCustomProviderModelLabel = (model: CustomProviderModelInfo): string => {
+    const name = model.name || model.id;
+    if (model.isFree) return `${name} — FREE`;
+    if (model.pricing?.input !== undefined && model.pricing?.output !== undefined) {
+      return `${name} — $${model.pricing.input}/M in, $${model.pricing.output}/M out`;
+    }
+    return `${name} — Paid`;
+  };
 
   const saveProviders = useCallback(
     async (next: CustomAIProvider[]) => {
@@ -184,7 +231,7 @@ const AIPanel: React.FC = () => {
 
   const startAddProvider = () => {
     const defaults = providerDefaults('openai');
-    setEditingProvider({
+    openEditingProvider({
       id: `custom-${Date.now()}`,
       type: 'openai',
       name: '',
@@ -857,7 +904,7 @@ const AIPanel: React.FC = () => {
             <div className='flex shrink-0 gap-2'>
               <button
                 className='btn btn-outline btn-sm'
-                onClick={() => setEditingProvider({ ...p })}
+                onClick={() => openEditingProvider(p)}
                 disabled={!enabled}
               >
                 {_('Edit')}
@@ -884,13 +931,17 @@ const AIPanel: React.FC = () => {
                 <button
                   key={type}
                   type='button'
-                  onClick={() =>
+                  onClick={() => {
                     setEditingProvider({
                       ...editingProvider,
                       type,
                       ...providerDefaults(type),
-                    })
-                  }
+                    });
+                    // A different provider type means a different endpoint:
+                    // the loaded model list no longer applies.
+                    setEditingProviderModels([]);
+                    setEditingProviderModelsError('');
+                  }}
                   className={`btn btn-sm ${editingProvider.type === type ? 'btn-contrast' : 'btn-ghost eink-bordered'}`}
                 >
                   {type === 'google' ? 'Google' : type === 'claude' ? 'Claude' : 'OpenAI'}
@@ -949,7 +1000,56 @@ const AIPanel: React.FC = () => {
                 className='input input-sm eink-bordered w-full'
                 value={editingProvider.model}
                 onChange={(e) => setEditingProvider({ ...editingProvider, model: e.target.value })}
+                placeholder='gemini-2.5-flash'
               />
+              <div className='flex flex-wrap items-center gap-2'>
+                <button
+                  type='button'
+                  className='btn btn-outline btn-sm'
+                  onClick={() => void loadEditingProviderModels()}
+                  disabled={
+                    editingProviderModelsLoading ||
+                    !editingProvider.apiKey.trim() ||
+                    !editingProvider.baseUrl.trim()
+                  }
+                >
+                  {editingProviderModelsLoading ? (
+                    <PiSpinner className='size-4 animate-spin' />
+                  ) : (
+                    <PiArrowsClockwise className='size-4' />
+                  )}
+                  {_('Load models')}
+                </button>
+                {editingProviderModelsError ? (
+                  <span className='text-error text-xs'>{editingProviderModelsError}</span>
+                ) : editingProviderModels.length === 0 ? (
+                  <span className='text-base-content/60 text-xs'>
+                    {_('Enter an API key, then load the available models.')}
+                  </span>
+                ) : null}
+              </div>
+              {editingProviderModels.length > 0 && (
+                <select
+                  className='select select-sm bg-base-100 text-base-content w-full'
+                  value={
+                    editingProviderModels.some((m) => m.id === editingProvider.model)
+                      ? editingProvider.model
+                      : ''
+                  }
+                  onChange={(e) =>
+                    setEditingProvider({ ...editingProvider, model: e.target.value })
+                  }
+                >
+                  <option value='' disabled>
+                    {_('Choose a model…')}
+                  </option>
+                  {editingProviderModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {formatCustomProviderModelLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <SettingsSwitchRow
               label={_('Enable')}

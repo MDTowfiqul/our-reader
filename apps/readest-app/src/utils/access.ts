@@ -190,7 +190,10 @@ export const isSelfHosted = (): boolean =>
  */
 // Our Reader fork: every feature is free, regardless of plan or purchase.
 // The gate functions are kept (call sites unchanged) and now always allow.
-export const isCustomizationAllowed = (plan: UserPlan, customizationPurchased: boolean): boolean => {
+export const isCustomizationAllowed = (
+  plan: UserPlan,
+  customizationPurchased: boolean,
+): boolean => {
   void plan;
   void customizationPurchased;
   return true;

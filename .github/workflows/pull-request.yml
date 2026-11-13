@@ -35,7 +35,7 @@ jobs:
   # PRs that don't touch the Rust backend. The job still runs and reports
   # success so it stays green as a required check.
   rust_lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # pull-requests: read lets dorny/paths-filter list a PR's changed files
     # via the REST API (the top-level grant is contents: read only).
     permissions:
@@ -144,7 +144,7 @@ jobs:
         run: cargo test
 
   build_web_app:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -215,7 +215,7 @@ jobs:
   # Playwright and run only on shard 1; koplugin + browser-extension tests
   # moved to the test_extensions job.
   test_web_app:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -349,7 +349,7 @@ jobs:
   # changed. Frontend-only PRs are covered by the web build/test jobs. The job
   # still runs and reports success so it stays green as a required check.
   build_tauri_app:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # pull-requests: read lets dorny/paths-filter list a PR's changed files
     # via the REST API (the top-level grant is contents: read only).
     permissions:

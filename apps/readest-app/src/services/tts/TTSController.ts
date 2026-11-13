@@ -1242,8 +1242,7 @@ export class TTSController extends EventTarget {
     const sectionIndex = this.#ttsSectionIndex;
     if (!doc || sectionIndex < 0) return null;
     let sentences =
-      this.#sentenceListCache?.doc === doc &&
-      this.#sentenceListCache.sectionIndex === sectionIndex
+      this.#sentenceListCache?.doc === doc && this.#sentenceListCache.sectionIndex === sectionIndex
         ? this.#sentenceListCache.sentences
         : null;
     if (!sentences) {

@@ -30,6 +30,7 @@ import {
   SystemSettings,
   WebDAVSettings,
   GoogleDriveSettings,
+  TelegramBackupSettings,
   S3Settings,
   OneDriveSettings,
   ICloudSettings,
@@ -174,6 +175,12 @@ export const DEFAULT_GOOGLE_DRIVE_SETTINGS = {
   lastSyncedAt: 0,
 } as GoogleDriveSettings;
 
+export const DEFAULT_TELEGRAM_BACKUP_SETTINGS = {
+  enabled: false,
+  botToken: '',
+  chatId: '',
+} as TelegramBackupSettings;
+
 export const DEFAULT_S3_SETTINGS = {
   enabled: false,
   endpoint: '',
@@ -276,6 +283,7 @@ export const DEFAULT_SYSTEM_SETTINGS: Partial<SystemSettings> = {
   notion: DEFAULT_NOTION_SETTINGS,
   webdav: DEFAULT_WEBDAV_SETTINGS,
   googleDrive: DEFAULT_GOOGLE_DRIVE_SETTINGS,
+  telegramBackup: DEFAULT_TELEGRAM_BACKUP_SETTINGS,
   s3: DEFAULT_S3_SETTINGS,
   onedrive: DEFAULT_ONEDRIVE_SETTINGS,
   icloud: DEFAULT_ICLOUD_SETTINGS,

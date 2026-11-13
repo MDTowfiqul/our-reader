@@ -714,15 +714,15 @@ const IntegrationsPanel: React.FC = () => {
           >
             {false && (
               <CloudProviderRow
-              icon={RiCloudFill}
-              title={_('Readest Cloud')}
-              status={readestStatus}
-              checked={!!user && readestEnabled}
-              canToggle={!!user}
-              onToggle={(next) => toggleCloudProvider('readest', next)}
-              onOpen={() => (user ? setSubPage('readest-cloud') : navigateToLogin(router))}
-              toggleLabel={_('Sync with Readest Cloud')}
-            />
+                icon={RiCloudFill}
+                title={_('Readest Cloud')}
+                status={readestStatus}
+                checked={!!user && readestEnabled}
+                canToggle={!!user}
+                onToggle={(next) => toggleCloudProvider('readest', next)}
+                onOpen={() => (user ? setSubPage('readest-cloud') : navigateToLogin(router))}
+                toggleLabel={_('Sync with Readest Cloud')}
+              />
             )}
             {/* Third-party providers are premium: every row carries the tier
                 badge; on a free plan the checkbox is disabled and opening a
@@ -752,62 +752,64 @@ const IntegrationsPanel: React.FC = () => {
             )}
             {false && (
               <CloudProviderRow
-              icon={RiCloudLine}
-              title={_('WebDAV')}
-              status={webdavStatus}
-              badge={premiumBadge}
-              checked={!!settings.webdav?.enabled}
-              canToggle={canToggleCloudProvider({
-                isPremium: isCloudSyncPremium,
-                isConfigured: webdavConfigured,
-                isEnabled: !!settings.webdav?.enabled,
-              })}
-              onToggle={(next) => toggleCloudProvider('webdav', next)}
-              onOpen={() => (isCloudSyncPremium ? setSubPage('webdav') : navigateToProfile(router))}
-              toggleLabel={_('Sync with WebDAV')}
-            />
+                icon={RiCloudLine}
+                title={_('WebDAV')}
+                status={webdavStatus}
+                badge={premiumBadge}
+                checked={!!settings.webdav?.enabled}
+                canToggle={canToggleCloudProvider({
+                  isPremium: isCloudSyncPremium,
+                  isConfigured: webdavConfigured,
+                  isEnabled: !!settings.webdav?.enabled,
+                })}
+                onToggle={(next) => toggleCloudProvider('webdav', next)}
+                onOpen={() =>
+                  isCloudSyncPremium ? setSubPage('webdav') : navigateToProfile(router)
+                }
+                toggleLabel={_('Sync with WebDAV')}
+              />
             )}
             {false && (
               <CloudProviderRow
-              icon={RiDatabase2Line}
-              title={_('S3 Storage')}
-              status={s3Status}
-              badge={premiumBadge}
-              checked={!!settings.s3?.enabled}
-              canToggle={canToggleCloudProvider({
-                isPremium: isCloudSyncPremium,
-                isConfigured: s3Configured,
-                isEnabled: !!settings.s3?.enabled,
-              })}
-              onToggle={(next) => toggleCloudProvider('s3', next)}
-              onOpen={() => (isCloudSyncPremium ? setSubPage('s3') : navigateToProfile(router))}
-              toggleLabel={_('Sync with S3')}
-            />
+                icon={RiDatabase2Line}
+                title={_('S3 Storage')}
+                status={s3Status}
+                badge={premiumBadge}
+                checked={!!settings.s3?.enabled}
+                canToggle={canToggleCloudProvider({
+                  isPremium: isCloudSyncPremium,
+                  isConfigured: s3Configured,
+                  isEnabled: !!settings.s3?.enabled,
+                })}
+                onToggle={(next) => toggleCloudProvider('s3', next)}
+                onOpen={() => (isCloudSyncPremium ? setSubPage('s3') : navigateToProfile(router))}
+                toggleLabel={_('Sync with S3')}
+              />
             )}
             {false &&
               (appService?.isDesktopApp ||
-              appService?.isAndroidApp ||
-              appService?.isIOSApp ||
-              // Web: only when a Web-type Microsoft client id is configured for this build.
-              (isWebAppPlatform() && !!getMicrosoftClientId())) && (
-              <CloudProviderRow
-                icon={RiMicrosoftLine}
-                title={_('OneDrive')}
-                status={onedriveStatus}
-                badge={premiumBadge}
-                checked={!!settings.onedrive?.enabled}
-                canToggle={canToggleCloudProvider({
-                  isPremium: isCloudSyncPremium,
-                  isConfigured: onedriveConfigured,
-                  isEnabled: !!settings.onedrive?.enabled,
-                })}
-                onToggle={(next) => toggleCloudProvider('onedrive', next)}
-                onOpen={() =>
-                  isCloudSyncPremium ? setSubPage('onedrive') : navigateToProfile(router)
-                }
-                toggleLabel={_('Sync with OneDrive')}
-              />
-            )}
+                appService?.isAndroidApp ||
+                appService?.isIOSApp ||
+                // Web: only when a Web-type Microsoft client id is configured for this build.
+                (isWebAppPlatform() && !!getMicrosoftClientId())) && (
+                <CloudProviderRow
+                  icon={RiMicrosoftLine}
+                  title={_('OneDrive')}
+                  status={onedriveStatus}
+                  badge={premiumBadge}
+                  checked={!!settings.onedrive?.enabled}
+                  canToggle={canToggleCloudProvider({
+                    isPremium: isCloudSyncPremium,
+                    isConfigured: onedriveConfigured,
+                    isEnabled: !!settings.onedrive?.enabled,
+                  })}
+                  onToggle={(next) => toggleCloudProvider('onedrive', next)}
+                  onOpen={() =>
+                    isCloudSyncPremium ? setSubPage('onedrive') : navigateToProfile(router)
+                  }
+                  toggleLabel={_('Sync with OneDrive')}
+                />
+              )}
             {false && (appService?.isIOSApp || appService?.isMacOSApp) && (
               <CloudProviderRow
                 icon={RiAppleLine}

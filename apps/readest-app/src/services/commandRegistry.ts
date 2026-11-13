@@ -154,7 +154,7 @@ const panelIcons: Record<SettingsPanelType, IconType> = {
   TTS: PiSpeakerHigh,
   Language: RiTranslate,
   AI: PiRobot,
-  Integrations: RiShareLine,
+  CloudBackup: RiShareLine,
   Custom: IoAccessibilityOutline,
 };
 

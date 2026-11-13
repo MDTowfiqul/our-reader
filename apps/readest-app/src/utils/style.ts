@@ -1110,12 +1110,12 @@ export interface ThemeCode {
 
 export const getThemeCode = () => {
   let themeMode = 'auto';
-  let themeColor = 'default';
+  let themeColor = 'emerald';
   let systemIsDarkMode = false;
   let ambientIsDarkMode = false;
   let customThemes: CustomTheme[] = [];
   if (typeof window !== 'undefined') {
-    themeColor = localStorage.getItem('themeColor') || 'default';
+    themeColor = localStorage.getItem('themeColor') || 'emerald';
     themeMode = localStorage.getItem('themeMode') || 'auto';
     systemIsDarkMode = localStorage.getItem('systemIsDarkMode') === 'true';
     ambientIsDarkMode = readStoredAmbientIsDarkMode(

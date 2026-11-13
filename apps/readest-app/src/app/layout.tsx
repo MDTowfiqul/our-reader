@@ -7,7 +7,7 @@ import Providers from '@/components/Providers';
 
 import '../styles/globals.css';
 
-const url = 'https://web.readest.com/';
+const url = 'https://our-reader.vercel.app/';
 const title = 'Our Reader — Where You Read, Digest and Get Insight';
 const description =
   'Discover Our Reader, the ultimate online ebook reader for immersive and organized reading. ' +
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   },
   other: {
     'apple-mobile-web-app-capable': 'yes',
-    'twitter:domain': 'web.readest.com',
+    'twitter:domain': 'our-reader.vercel.app',
     'twitter:url': url,
   },
 };

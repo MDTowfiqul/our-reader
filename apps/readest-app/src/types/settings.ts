@@ -257,6 +257,25 @@ export interface WebDAVSettings {
 }
 
 /**
+ * Telegram backup settings (Settings → Cloud Backup → Telegram Backup).
+ * The bot token is the user's own bot credential — it is stripped from
+ * backup zips like the other credentials in
+ * `BACKUP_SETTINGS_CREDENTIAL_FIELDS`, and never leaves the device except
+ * in calls to api.telegram.org that the user triggers (Test / Back up now).
+ */
+export interface TelegramBackupSettings {
+  enabled: boolean;
+  /** Bot token from @BotFather. */
+  botToken: string;
+  /** Chat or channel the bot sends backups to, e.g. -1001234567890 or @channel. */
+  chatId: string;
+  /** When the last Telegram backup was sent. */
+  lastBackupAt?: number;
+  /** Message id of the last backup sent, for reference. */
+  lastBackupMessageId?: number;
+}
+
+/**
  * Google Drive file-sync settings. A second file-sync backend alongside
  * {@link WebDAVSettings}, sharing the same engine, sub-toggles, and strategy
  * vocabulary. Drive has no URL / credentials / root path (it is OAuth + a
@@ -598,6 +617,7 @@ export interface SystemSettings {
   readestCloud?: ReadestCloudSettings;
   webdav: WebDAVSettings;
   googleDrive: GoogleDriveSettings;
+  telegramBackup: TelegramBackupSettings;
   s3: S3Settings;
   onedrive: OneDriveSettings;
   icloud: ICloudSettings;
