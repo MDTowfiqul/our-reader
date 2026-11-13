@@ -128,6 +128,7 @@ jobs:
         run: |
           rm -rf src-tauri/gen/android
           pnpm tauri android init
+          pnpm tauri icon src-tauri/icons/icon.png
           git checkout .
           printf 'keyAlias=ourreader\npassword=android\nstoreFile=%s/release.jks\n' "$RUNNER_TEMP" > src-tauri/gen/android/keystore.properties
           pnpm tauri android build -t aarch64
