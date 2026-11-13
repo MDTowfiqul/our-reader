@@ -53,8 +53,7 @@ const parseOpenAICompatibleModels = (json: unknown): CustomProviderModelInfo[] =
       return {
         id,
         name: entry.name,
-        pricing:
-          input !== undefined || output !== undefined ? { input, output } : undefined,
+        pricing: input !== undefined || output !== undefined ? { input, output } : undefined,
         // OpenRouter marks free models with a ':free' suffix; other
         // endpoints report $0 prompt + completion pricing for free models.
         isFree: id.endsWith(':free') || (hasPricing && prompt === 0 && completion === 0),

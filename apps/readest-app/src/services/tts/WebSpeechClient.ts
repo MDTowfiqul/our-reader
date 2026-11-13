@@ -337,9 +337,7 @@ export class WebSpeechClient implements TTSClient {
     // off as a Bengali voice. Installing the book's language remains the
     // real fix; this only unblocks playback until then.
     const isFallback = matchedVoices.length === 0;
-    const filteredVoices = isFallback
-      ? this.#voices.filter(isNotBlacklisted)
-      : matchedVoices;
+    const filteredVoices = isFallback ? this.#voices.filter(isNotBlacklisted) : matchedVoices;
     const availableVoiceIds = new Set(filteredVoices.map((voice) => voice.voiceURI));
     const seenIds = new Set<string>();
     const voices = filteredVoices

@@ -33,7 +33,10 @@ import { saveBookMetadataEdit } from '@/services/bookMetadataEdit';
 import { eventDispatcher } from '@/utils/event';
 import { transferManager } from '@/services/transferManager';
 import { purgeCloudBookData } from '@/services/purgeCloudBookData';
-import { isReadestCloudEnabled, isReadestCloudStorageActive } from '@/services/sync/cloudSyncProvider';
+import {
+  isReadestCloudEnabled,
+  isReadestCloudStorageActive,
+} from '@/services/sync/cloudSyncProvider';
 import { getFilename, getFolderImportGroupName, joinScannedPath } from '@/utils/path';
 import {
   extractCollectionPack,

@@ -233,67 +233,66 @@ const ProfilePage = () => {
             </div>
           )}
           <div className='sm:bg-base-200 overflow-hidden rounded-lg sm:p-6 sm:shadow-md'>
-              <div className='flex flex-col gap-y-8'>
-                <div className='flex flex-col gap-y-8 px-6'>
-                  <UserInfo
-                    avatarUrl={avatarUrl}
-                    userFullName={userFullName}
-                    userEmail={userEmail}
-                    planDetails={userPlanDetails}
-                  />
+            <div className='flex flex-col gap-y-8'>
+              <div className='flex flex-col gap-y-8 px-6'>
+                <UserInfo
+                  avatarUrl={avatarUrl}
+                  userFullName={userFullName}
+                  userEmail={userEmail}
+                  planDetails={userPlanDetails}
+                />
 
-                  {!showStorageManager && !showSharedLinksManager && !showSyncManager && (
-                    <UsageStats quotas={quotas} />
-                  )}
-                </div>
-
-                {showStorageManager ? (
-                  <div className='flex flex-col gap-y-8 px-6'>
-                    <StorageManager />
-                  </div>
-                ) : showSharedLinksManager ? (
-                  <div className='flex flex-col gap-y-8 px-6'>
-                    <SharedLinksSection />
-                  </div>
-                ) : showSyncManager ? (
-                  <div className='flex flex-col gap-y-8 px-6'>
-                    <SyncCategoriesSection />
-                    <SyncPassphraseSection />
-                  </div>
-                ) : (
-                  <>
-                    <div className='flex flex-col gap-y-8 px-2 sm:px-6'>
-                      {/* Our Reader fork: no Plus/Pro pricing — all features are free. */}
-                      <div className='bg-base-200 rounded-lg p-6 text-center'>
-                        <p className='text-lg font-semibold'>
-                          {_('Free — all features included in Our Reader')}
-                        </p>
-                        <p className='text-base-content/70 mt-2 text-sm'>
-                          {_('There are no Plus or Pro plans in Our Reader.')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className='flex flex-col gap-y-8 px-6'>
-                      <AccountActions
-                        userPlan={userProfilePlan}
-                        iapAvailable={iapAvailable}
-                        onLogout={handleLogout}
-                        onResetPassword={handleResetPassword}
-                        onUpdateEmail={handleUpdateEmail}
-                        onConfirmDelete={handleDeleteWithMessage}
-                        onConfirmDeleteAllBooks={handleDeleteAllBooksWithMessage}
-                        onRestorePurchase={handleIAPRestorePurchase}
-                        onManageSubscription={handleManageSubscription}
-                        onManageStorage={handleManageStorage}
-                        onManageSharedLinks={handleManageSharedLinks}
-                        onManageSync={handleManageSync}
-                      />
-                    </div>
-                  </>
+                {!showStorageManager && !showSharedLinksManager && !showSyncManager && (
+                  <UsageStats quotas={quotas} />
                 )}
-
               </div>
+
+              {showStorageManager ? (
+                <div className='flex flex-col gap-y-8 px-6'>
+                  <StorageManager />
+                </div>
+              ) : showSharedLinksManager ? (
+                <div className='flex flex-col gap-y-8 px-6'>
+                  <SharedLinksSection />
+                </div>
+              ) : showSyncManager ? (
+                <div className='flex flex-col gap-y-8 px-6'>
+                  <SyncCategoriesSection />
+                  <SyncPassphraseSection />
+                </div>
+              ) : (
+                <>
+                  <div className='flex flex-col gap-y-8 px-2 sm:px-6'>
+                    {/* Our Reader fork: no Plus/Pro pricing — all features are free. */}
+                    <div className='bg-base-200 rounded-lg p-6 text-center'>
+                      <p className='text-lg font-semibold'>
+                        {_('Free — all features included in Our Reader')}
+                      </p>
+                      <p className='text-base-content/70 mt-2 text-sm'>
+                        {_('There are no Plus or Pro plans in Our Reader.')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className='flex flex-col gap-y-8 px-6'>
+                    <AccountActions
+                      userPlan={userProfilePlan}
+                      iapAvailable={iapAvailable}
+                      onLogout={handleLogout}
+                      onResetPassword={handleResetPassword}
+                      onUpdateEmail={handleUpdateEmail}
+                      onConfirmDelete={handleDeleteWithMessage}
+                      onConfirmDeleteAllBooks={handleDeleteAllBooksWithMessage}
+                      onRestorePurchase={handleIAPRestorePurchase}
+                      onManageSubscription={handleManageSubscription}
+                      onManageStorage={handleManageStorage}
+                      onManageSharedLinks={handleManageSharedLinks}
+                      onManageSync={handleManageSync}
+                    />
+                  </div>
+                </>
+              )}
             </div>
+          </div>
         </div>
         <Toast />
       </div>

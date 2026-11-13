@@ -154,9 +154,7 @@ const AIPanel: React.FC = () => {
   const [editingProvider, setEditingProvider] = useState<CustomAIProvider | null>(null);
   const [customPrompt, setCustomPrompt] = useState(aiSettings.customSystemPrompt ?? '');
   // Models loaded for the provider being edited (Settings → AI → Providers).
-  const [editingProviderModels, setEditingProviderModels] = useState<CustomProviderModelInfo[]>(
-    [],
-  );
+  const [editingProviderModels, setEditingProviderModels] = useState<CustomProviderModelInfo[]>([]);
   const [editingProviderModelsLoading, setEditingProviderModelsLoading] = useState(false);
   const [editingProviderModelsError, setEditingProviderModelsError] = useState('');
 

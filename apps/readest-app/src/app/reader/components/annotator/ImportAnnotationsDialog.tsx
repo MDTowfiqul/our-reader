@@ -36,7 +36,9 @@ const ImportAnnotationsDialog: React.FC<ImportAnnotationsDialogProps> = ({
     >
       <BoxedList
         title={_('Import From')}
-        description={_('Import highlights and notes exported from Our Reader or another reading app.')}
+        description={_(
+          'Import highlights and notes exported from Our Reader or another reading app.',
+        )}
       >
         <NavigationRow
           icon={MdDataObject}

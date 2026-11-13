@@ -7,11 +7,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useLibraryStore } from '@/store/libraryStore';
 import type { Book } from '@/types/book';
 import { StatisticsDb } from '@/services/statistics/statisticsDb';
-import {
-  getDailySeconds,
-  getStreaks,
-  toDateKey,
-} from '@/services/statistics/readingStats';
+import { getDailySeconds, getStreaks, toDateKey } from '@/services/statistics/readingStats';
 import { BoxedList, SettingsRow } from '@/components/settings/primitives';
 import { formatDuration } from '@/utils/duration';
 import { getLocale } from '@/utils/misc';
@@ -55,8 +51,7 @@ const DashboardPage: React.FC = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const books =
-          libraryBooks.length > 0 ? libraryBooks : await appService.loadLibraryBooks();
+        const books = libraryBooks.length > 0 ? libraryBooks : await appService.loadLibraryBooks();
         const db = await StatisticsDb.open(appService);
         const [quarters, allTotals] = await Promise.all([
           db.getQuarterHourDurations(),
@@ -98,10 +93,7 @@ const DashboardPage: React.FC = () => {
   startOfWeek.setDate(today.getDate() - 6);
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const startOfYear = new Date(today.getFullYear(), 0, 1);
-  const finished = useMemo(
-    () => rows.filter((r) => r.book.readingStatus === 'finished'),
-    [rows],
-  );
+  const finished = useMemo(() => rows.filter((r) => r.book.readingStatus === 'finished'), [rows]);
   const currentlyReading = useMemo(
     () =>
       rows.filter(
@@ -112,16 +104,10 @@ const DashboardPage: React.FC = () => {
     [rows],
   );
   const recentlyFinished = useMemo(
-    () =>
-      [...finished]
-        .sort((a, b) => b.book.updatedAt - a.book.updatedAt)
-        .slice(0, 10),
+    () => [...finished].sort((a, b) => b.book.updatedAt - a.book.updatedAt).slice(0, 10),
     [finished],
   );
-  const tableRows = useMemo(
-    () => [...rows].sort((a, b) => b.lastOpen - a.lastOpen),
-    [rows],
-  );
+  const tableRows = useMemo(() => [...rows].sort((a, b) => b.lastOpen - a.lastOpen), [rows]);
 
   return (
     <main className='mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6'>
