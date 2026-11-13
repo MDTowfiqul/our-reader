@@ -760,12 +760,12 @@ const actionItems = [
   },
   {
     id: 'action.about',
-    labelKey: _('About Readest'),
+    labelKey: _('About Our Reader'),
     keywords: ['about', 'readest', 'version', 'info'],
   },
   {
     id: 'action.telemetry',
-    labelKey: _('Help improve Readest'),
+    labelKey: _('Help improve Our Reader'),
     keywords: ['telemetry', 'analytics', 'improve', 'statistics'],
   },
 ];

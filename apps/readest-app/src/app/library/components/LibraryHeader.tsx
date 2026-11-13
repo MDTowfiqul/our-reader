@@ -32,6 +32,7 @@ interface LibraryHeaderProps {
   onImportBooksFromDirectory?: () => void;
   onImportFromWebBrowser?: () => void;
   onImportBookFromNovelUrl?: () => void;
+  onOpenBoighar: () => void;
   onOpenCatalogManager: () => void;
   onOpenFeeds: () => void;
   onToggleSelectMode: () => void;
@@ -54,6 +55,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
   onImportBooksFromDirectory,
   onImportFromWebBrowser,
   onImportBookFromNovelUrl,
+  onOpenBoighar,
   onOpenCatalogManager,
   onOpenFeeds,
   onToggleSelectMode,
@@ -269,20 +271,19 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           </div>
         ) : (
           <div className='flex h-full items-center gap-x-2 sm:gap-x-4'>
-            {/* Our Reader: back to the Our Boighar library this reader serves.
+            {/* Our Reader: opens the Our Boighar library in an in-app
+                browser; books picked there import straight into the reader.
                 NOTE: if the planned Our Boighar -> Our Ebooks rename is
-                executed, update this URL to the new site address. */}
-            <a
-              href='https://mdtowfiqul.github.io/our-boighar/'
-              target='_blank'
-              rel='noreferrer'
+                executed, update the URL in src/services/boighar.ts. */}
+            <button
+              onClick={onOpenBoighar}
               className='btn btn-ghost text-base-content/85 h-8 min-h-8 px-2'
               title={_('Back to Boighar')}
             >
               <span className='font-sans text-base font-normal whitespace-nowrap sm:text-sm'>
                 {_('Back to Boighar')}
               </span>
-            </a>
+            </button>
             <Dropdown
               label={_('View Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'

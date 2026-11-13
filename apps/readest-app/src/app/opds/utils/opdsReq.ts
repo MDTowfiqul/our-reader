@@ -6,7 +6,7 @@ import {
   isWebAppPlatform,
 } from '@/services/environment';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import {
   CustomHeaders,
   normalizeCustomHeaders,
@@ -258,7 +258,7 @@ export const probeAuth = async (
 
   const fetchURL = useProxy ? getProxiedURL(cleanUrl, false, normalizedCustomHeaders) : cleanUrl;
   const headers: Record<string, string> = withOriginSuppressed({
-    'User-Agent': READEST_OPDS_USER_AGENT,
+    'User-Agent': OUR_READER_OPDS_USER_AGENT,
     Accept: 'application/atom+xml, application/xml, text/xml, */*',
     ...(!useProxy ? normalizedCustomHeaders : {}),
   });
@@ -370,7 +370,7 @@ export const fetchWithAuth = async (
 
   const fetchURL = useProxy ? getProxiedURL(cleanUrl, false, normalizedCustomHeaders) : cleanUrl;
   const baseHeaders: Record<string, string> = withOriginSuppressed({
-    'User-Agent': READEST_OPDS_USER_AGENT,
+    'User-Agent': OUR_READER_OPDS_USER_AGENT,
     Accept: 'application/atom+xml, application/xml, text/xml, */*',
     ...(!useProxy ? normalizedCustomHeaders : {}),
     ...(options.headers as Record<string, string>),

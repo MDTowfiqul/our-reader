@@ -3,41 +3,21 @@ import semver from 'semver';
 import Image from 'next/image';
 import { useEnv } from '@/context/EnvContext';
 import { useEffect, useState } from 'react';
-import { type as osType, arch as osArch } from '@tauri-apps/plugin-os';
-import { check, Update } from '@tauri-apps/plugin-updater';
-import { relaunch, exit } from '@tauri-apps/plugin-process';
+import { type as osType } from '@tauri-apps/plugin-os';
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
-import { Command } from '@tauri-apps/plugin-shell';
-import { invoke } from '@tauri-apps/api/core';
-import { desktopDir } from '@tauri-apps/api/path';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { isTauriAppPlatform } from '@/services/environment';
 import { useTranslator } from '@/hooks/useTranslator';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSearchParams } from 'next/navigation';
-import { getAppVersion } from '@/utils/version';
+import { getAppVersion, isUpdateNewer } from '@/utils/version';
 import { tauriDownload } from '@/utils/transfer';
-import { installPackage, verifyUpdateSignature, installNightlyUpdate } from '@/utils/bridge';
-import { join } from '@tauri-apps/api/path';
+import { installPackage } from '@/utils/bridge';
 import { getLocale } from '@/utils/misc';
-import { getAndroidPlatformKey, setLastShownReleaseNotesVersion } from '@/helpers/updater';
-import type { ResolvedNightlyUpdate } from '@/helpers/updater';
-import {
-  READEST_UPDATER_FILE,
-  READEST_CHANGELOG_FILE,
-  READEST_UPDATER_PUBKEY,
-} from '@/services/constants';
+import { fetchOurLatestRelease, setLastShownReleaseNotesVersion } from '@/helpers/updater';
+import { OUR_READER_RELEASES_URL } from '@/services/constants';
 import Dialog from '@/components/Dialog';
 import Link from './Link';
-
-interface ReleaseNotes {
-  releases: Record<
-    string,
-    {
-      date: string;
-      notes: string[];
-    }
-  >;
-}
 
 interface Changelog {
   version: string;
@@ -70,26 +50,34 @@ interface GenericUpdate {
   version: string;
   date?: string;
   body?: string;
+  /** Desktop only: there is no installable artifact yet, so the action just
+      opens OUR GitHub release page in the browser. */
+  openReleasePage?: boolean;
   downloadAndInstall?(onEvent?: (progress: DownloadEvent) => void): Promise<void>;
 }
 
-const TAURI_UPDATER_KEYS = new Set([
-  'darwin-aarch64',
-  'darwin-x86_64',
-  'windows-x86_64',
-  'windows-aarch64',
-]);
+/** Turn a GitHub release body into changelog lines. */
+const parseReleaseNotesBody = (input: string): string[] => {
+  return input
+    .split('\n')
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^#{1,6}\s+/, '')
+        .replace(/^[-*]\s+/, '')
+        .replace(/^\d+\.\s+/, ''),
+    )
+    .filter((line) => line.length > 0);
+};
 
 export const UpdaterContent = ({
   latestVersion,
   lastVersion,
   checkUpdate = true,
-  nightlyUpdate,
 }: {
   latestVersion?: string;
   lastVersion?: string;
   checkUpdate?: boolean;
-  nightlyUpdate?: ResolvedNightlyUpdate;
 }) => {
   const _ = useTranslation();
   const [targetLang, setTargetLang] = useState('EN');
@@ -107,7 +95,7 @@ export const UpdaterContent = ({
   const [oldVersion, setOldVersion] = useState(
     lastVersion ?? searchParams?.get('lastVersion') ?? '',
   );
-  const [update, setUpdate] = useState<GenericUpdate | Update | null>(null);
+  const [update, setUpdate] = useState<GenericUpdate | null>(null);
   const [changelogs, setChangelogs] = useState<Changelog[]>([]);
   const [showOriginal, setShowOriginal] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -122,260 +110,92 @@ export const UpdaterContent = ({
   }, []);
 
   useEffect(() => {
-    const checkDesktopUpdate = async () => {
-      const update = await check();
-      if (update) {
-        setUpdate(update);
-      }
-    };
+    // Android: download OUR release APK asset from OUR GitHub release and
+    // install it. A single universal arm64 APK is attached to the release,
+    // so there is no per-ABI manifest to consult.
     const checkAndroidUpdate = async () => {
       if (!appService) return;
       const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
-      const data = await response.json();
-      if (semver.gt(data.version, currentVersion)) {
-        const platformKey = getAndroidPlatformKey(osArch());
-        const arch = platformKey.replace('android-', '');
-        const downloadUrl = data.platforms[platformKey]?.url as string;
-        const apkFilePath = await appService.resolveFilePath(
-          `Readest_${data.version}_${arch}.apk`,
-          'Cache',
-        );
-        setUpdate({
-          currentVersion,
-          version: data.version,
-          date: data.pub_date,
-          body: data.notes,
-          downloadAndInstall: async (onEvent) => {
-            await new Promise<void>(async (resolve, reject) => {
-              let downloaded = 0;
-              let total = 0;
-              await tauriDownload(downloadUrl, apkFilePath, (progress) => {
-                if (!onEvent) return;
-                if (!total && progress.total) {
-                  total = progress.total;
-                  onEvent({
-                    event: 'Started',
-                    data: { contentLength: total },
-                  });
-                } else if (downloaded > 0 && progress.progress === progress.total) {
-                  console.log('APK downloaded to', apkFilePath);
-                  onEvent?.({ event: 'Finished' });
-                  setTimeout(() => {
-                    resolve();
-                  }, 1000);
-                }
-
-                onEvent({
-                  event: 'Progress',
-                  data: { chunkLength: progress.progress - downloaded },
-                });
-                downloaded = progress.progress;
-              }).catch((error) => {
-                console.error('Download failed:', error);
-                reject(error);
-              });
-            });
-
-            const res = await installPackage({
-              path: apkFilePath,
-            });
-            if (res.success) {
-              console.log('APK installed successfully');
-            } else {
-              console.error('Failed to install APK:', res.error);
-            }
-          },
-        } as GenericUpdate);
-      }
-    };
-    const downloadWithProgress = async (
-      downloadUrl: string,
-      filePath: string,
-      onEvent?: (progress: DownloadEvent) => void,
-    ): Promise<void> => {
-      let downloaded = 0;
-      let total = 0;
-      let finished = false;
-      // Resolve when tauriDownload itself completes — NOT only when a progress
-      // tick reports progress === total. Servers that omit Content-Length leave
-      // total at 0, so that tick never fires and the await would hang forever
-      // after the file is fully written (nightly portable/AppImage/Android).
-      await tauriDownload(downloadUrl, filePath, (progress) => {
-        if (!onEvent) return;
-        if (!total && progress.total) {
-          total = progress.total;
-          onEvent({ event: 'Started', data: { contentLength: total } });
-        }
-        onEvent({ event: 'Progress', data: { chunkLength: progress.progress - downloaded } });
-        downloaded = progress.progress;
-        if (progress.total && progress.progress === progress.total && !finished) {
-          finished = true;
-          onEvent({ event: 'Finished' });
-        }
-      });
-      console.log('File downloaded to', filePath);
-      if (onEvent && !finished) onEvent({ event: 'Finished' });
-    };
-    const checkWindowsPortableUpdate = async () => {
-      if (!appService) return;
-      const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
-      const data = await response.json();
-      if (semver.gt(data.version, currentVersion)) {
-        const OS_ARCH = osArch();
-        const platformKey =
-          OS_ARCH === 'x86_64' ? 'windows-x86_64-portable' : 'windows-aarch64-portable';
-        const arch = OS_ARCH === 'x86_64' ? 'x64' : 'arm64';
-        const downloadUrl = data.platforms[platformKey]?.url as string;
-        const execDir = await invoke<string>('get_executable_dir');
-        const exeFileName = `Readest_${data.version}_${arch}-portable.exe`;
-        const exeFilePath = await join(execDir, exeFileName);
-        setUpdate({
-          currentVersion,
-          version: data.version,
-          date: data.pub_date,
-          body: data.notes,
-          downloadAndInstall: async (onEvent) => {
-            await downloadWithProgress(downloadUrl, exeFilePath, onEvent);
-            try {
-              console.log('Launching new executable:', exeFilePath);
-              const command = Command.create('start-readest', ['/C', 'start', '', exeFilePath]);
-              await command.spawn();
-              console.log('New executable launched, exiting current app...');
-              setTimeout(async () => {
-                await exit(0);
-              }, 500);
-            } catch (error) {
-              console.error('Failed to launch new executable:', error);
-            }
-          },
-        } as GenericUpdate);
-      }
-    };
-    const checkAppImageUpdate = async () => {
-      if (!appService) return;
-      const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-      const response = await fetch(READEST_UPDATER_FILE);
-      const data = await response.json();
-      if (semver.gt(data.version, currentVersion)) {
-        const OS_ARCH = osArch();
-        const platformKey =
-          OS_ARCH === 'x86_64' ? 'linux-x86_64-appimage' : 'linux-aarch64-appimage';
-        const arch = OS_ARCH === 'x86_64' ? 'x86_64' : 'aarch64';
-        const downloadUrl = data.platforms[platformKey]?.url as string;
-        const appImageFileName = `Readest_${data.version}_${arch}.AppImage`;
-        const appImageFilePath = await join(await desktopDir(), appImageFileName);
-        setUpdate({
-          currentVersion,
-          version: data.version,
-          date: data.pub_date,
-          body: data.notes,
-          downloadAndInstall: async (onEvent) => {
-            await downloadWithProgress(downloadUrl, appImageFilePath, onEvent);
-            try {
-              // Make the AppImage executable
-              const chmodCommand = Command.create('chmod-appimage', ['+x', appImageFilePath]);
-              await chmodCommand.execute();
-              console.log('AppImage made executable:', appImageFilePath);
-
-              // Launch the new AppImage
-              console.log('Launching new AppImage:', appImageFilePath);
-              const launchCommand = Command.create('launch-appimage', [appImageFilePath]);
-              await launchCommand.spawn();
-              console.log('New AppImage launched, exiting current app...');
-              setTimeout(async () => {
-                await exit(0);
-              }, 500);
-            } catch (error) {
-              console.error('Failed to launch new AppImage:', error);
-            }
-          },
-        } as GenericUpdate);
-      }
-    };
-    const buildNightlyUpdate = (n: ResolvedNightlyUpdate): GenericUpdate => ({
-      currentVersion,
-      version: n.version,
-      date: n.pubDate,
-      body: n.notes,
-      downloadAndInstall: async (onEvent) => {
-        if (TAURI_UPDATER_KEYS.has(n.platformKey)) {
-          // macOS / Windows-NSIS: Tauri updater (verify + install +
-          // relaunch). A 0 contentLength (server omitted Content-Length) is
-          // tolerated: we only emit 'Started' once a non-zero total arrives so
-          // the percent math never divides by zero.
-          let total = 0;
-          let lastDownloaded = 0;
-          await installNightlyUpdate(n.endpoint, (p) => {
-            if (p.event === 'progress') {
-              if (!total && p.contentLength) {
-                total = p.contentLength;
-                onEvent?.({ event: 'Started', data: { contentLength: total } });
-              }
-              // p.downloaded is a cumulative running total from Rust, but the
-              // consumer treats chunkLength as a per-chunk delta, so convert.
-              onEvent?.({
-                event: 'Progress',
-                data: { chunkLength: p.downloaded - lastDownloaded },
-              });
-              lastDownloaded = p.downloaded;
-            } else if (p.event === 'finished') {
-              onEvent?.({ event: 'Finished' });
-            }
-          });
-          return;
-        }
-        // Windows-portable / Linux-AppImage / Android: download, verify, install.
-        const fileName = n.url.split('/').pop() || `Readest_${n.version}`;
-        let filePath: string;
-        if (n.platformKey.includes('portable')) {
-          // Windows portable: write into the executable dir so the new exe
-          // replaces the running one in place (mirrors checkWindowsPortableUpdate).
-          const execDir = await invoke<string>('get_executable_dir');
-          filePath = await join(execDir, fileName);
-        } else {
-          filePath = await appService!.resolveFilePath(fileName, 'Cache');
-        }
-        await downloadWithProgress(n.url, filePath, onEvent);
-        const ok = await verifyUpdateSignature(filePath, n.signature, READEST_UPDATER_PUBKEY);
-        if (!ok) {
-          console.error('Nightly signature verification failed; aborting install');
-          throw new Error('Signature verification failed');
-        }
-        if (n.platformKey.startsWith('android')) {
-          const res = await installPackage({ path: filePath });
-          if (!res.success) console.error('Failed to install APK:', res.error);
-        } else if (n.platformKey.includes('appimage')) {
-          const chmod = Command.create('chmod-appimage', ['+x', filePath]);
-          await chmod.execute();
-          const launch = Command.create('launch-appimage', [filePath]);
-          await launch.spawn();
-          setTimeout(async () => {
-            await exit(0);
-          }, 500);
-        } else {
-          // windows portable
-          const command = Command.create('start-readest', ['/C', 'start', '', filePath]);
-          await command.spawn();
-          setTimeout(async () => {
-            await exit(0);
-          }, 500);
-        }
-      },
-    });
-    const checkForUpdates = async () => {
-      if (nightlyUpdate) {
-        setUpdate(buildNightlyUpdate(nightlyUpdate));
+      const release = await fetchOurLatestRelease(fetch as unknown as typeof tauriFetch);
+      if (!release || !isUpdateNewer(release.version, currentVersion) || !release.apkUrl) {
         return;
       }
+      const downloadUrl = release.apkUrl;
+      const apkFilePath = await appService.resolveFilePath(
+        `OurReader_${release.version}_arm64.apk`,
+        'Cache',
+      );
+      setUpdate({
+        currentVersion,
+        version: release.version,
+        date: release.publishedAt,
+        body: release.body,
+        downloadAndInstall: async (onEvent) => {
+          await new Promise<void>(async (resolve, reject) => {
+            let downloaded = 0;
+            let total = 0;
+            await tauriDownload(downloadUrl, apkFilePath, (progress) => {
+              if (!onEvent) return;
+              if (!total && progress.total) {
+                total = progress.total;
+                onEvent({
+                  event: 'Started',
+                  data: { contentLength: total },
+                });
+              } else if (downloaded > 0 && progress.progress === progress.total) {
+                console.log('APK downloaded to', apkFilePath);
+                onEvent?.({ event: 'Finished' });
+                setTimeout(() => {
+                  resolve();
+                }, 1000);
+              }
+
+              onEvent({
+                event: 'Progress',
+                data: { chunkLength: progress.progress - downloaded },
+              });
+              downloaded = progress.progress;
+            }).catch((error) => {
+              console.error('Download failed:', error);
+              reject(error);
+            });
+          });
+
+          const res = await installPackage({
+            path: apkFilePath,
+          });
+          if (res.success) {
+            console.log('APK installed successfully');
+          } else {
+            console.error('Failed to install APK:', res.error);
+          }
+        },
+      } as GenericUpdate);
+    };
+    // Desktop: Our Reader ships no desktop updater artifacts yet. When OUR
+    // latest release is newer, offer it and open the GitHub release page
+    // for the download — never the upstream Readest updater.
+    const checkDesktopUpdate = async () => {
+      const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
+      const release = await fetchOurLatestRelease(fetch as unknown as typeof tauriFetch);
+      if (!release || !isUpdateNewer(release.version, currentVersion)) {
+        return;
+      }
+      setUpdate({
+        currentVersion,
+        version: release.version,
+        date: release.publishedAt,
+        body: release.body,
+        openReleasePage: true,
+        downloadAndInstall: async () => {
+          await openUrl(OUR_READER_RELEASES_URL);
+        },
+      } as GenericUpdate);
+    };
+    const checkForUpdates = async () => {
       const OS_TYPE = osType();
       try {
-        if (appService?.isPortableApp && OS_TYPE === 'windows') {
-          await checkWindowsPortableUpdate();
-        } else if (appService?.isAppImage) {
-          await checkAppImageUpdate();
-        } else if (['macos', 'windows', 'linux'].includes(OS_TYPE)) {
+        if (['macos', 'windows', 'linux'].includes(OS_TYPE)) {
           await checkDesktopUpdate();
         } else if (OS_TYPE === 'android') {
           await checkAndroidUpdate();
@@ -389,7 +209,7 @@ export const UpdaterContent = ({
       checkForUpdates();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appService?.hasUpdater, nightlyUpdate]);
+  }, [appService?.hasUpdater]);
 
   useEffect(() => {
     if (latestVersion) {
@@ -413,29 +233,25 @@ export const UpdaterContent = ({
     const fetchChangelogs = async (fromVersion: string): Promise<Changelog[]> => {
       try {
         const fetch = isTauriAppPlatform() ? tauriFetch : window.fetch;
-        const res = await fetch(READEST_CHANGELOG_FILE);
-        const data: ReleaseNotes = await res.json();
-        const releases = data.releases;
-
-        let entries = Object.entries(releases)
-          .filter(([ver]) => semver.gt(ver, fromVersion))
-          .sort(([a], [b]) => semver.rcompare(a, b));
-        entries = entries.length ? entries : Object.entries(releases).slice(0, 3);
-        return entries.map(([version, info]) => ({
-          version,
-          date: new Date(info.date).toLocaleDateString(),
-          notes: info.notes,
-        }));
+        const release = await fetchOurLatestRelease(fetch as unknown as typeof tauriFetch);
+        if (!release) return [];
+        // Show OUR latest release's notes: when it is newer than what the
+        // reader had (the update case) and when it is the installed version
+        // (the What's New case), so the notes never come up empty.
+        if (!semver.gt(release.version, fromVersion) && release.version !== currentVersion) {
+          return [];
+        }
+        return [
+          {
+            version: release.version,
+            date: release.publishedAt ? new Date(release.publishedAt).toLocaleDateString() : '',
+            notes: parseReleaseNotesBody(release.body),
+          },
+        ];
       } catch (error) {
         console.error('Failed to fetch changelog:', error);
         return [];
       }
-    };
-    const parseNumberedList = (input: string): string[] => {
-      return input
-        .split(/(?:^|\s)\d+\.\s/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0);
     };
     const updateChangelogs = async (update: GenericUpdate) => {
       setNewVersion(update.version);
@@ -445,7 +261,7 @@ export const UpdaterContent = ({
           {
             version: update.version,
             date: new Date(update.date).toLocaleDateString(),
-            notes: parseNumberedList(update.body ?? ''),
+            notes: parseReleaseNotesBody(update.body ?? ''),
           },
         ];
       }
@@ -476,6 +292,17 @@ export const UpdaterContent = ({
 
   const handleDownloadInstall = async () => {
     if (!update) {
+      return;
+    }
+    // Desktop: no installable artifact — the action just opens OUR GitHub
+    // release page. No progress bar, no relaunch.
+    if (update.openReleasePage) {
+      try {
+        await update.downloadAndInstall?.();
+      } catch (error) {
+        console.error('Failed to open the release page:', error);
+        setError(_('Failed to download and install update'));
+      }
       return;
     }
     let downloaded = 0;
@@ -509,9 +336,6 @@ export const UpdaterContent = ({
         }
       });
       console.log('package installed');
-      if (!appService?.isAndroidApp && process.env.NODE_ENV === 'production') {
-        await relaunch();
-      }
     } catch (error) {
       console.error('Failed to download and install update:', error);
       setError(_('Failed to download and install update'));
@@ -547,13 +371,16 @@ export const UpdaterContent = ({
           {checkUpdate ? (
             <div className='text-base-content grow text-sm'>
               <h2 className='mb-4 text-center font-bold sm:text-start'>
-                {_('A new version of Readest is available!')}
+                {_('A new version of Our Reader is available!')}
               </h2>
               <p className='mb-2'>
-                {_('Readest {{newVersion}} is available (installed version {{currentVersion}}).', {
-                  newVersion,
-                  currentVersion,
-                })}
+                {_(
+                  'Our Reader {{newVersion}} is available (installed version {{currentVersion}}).',
+                  {
+                    newVersion,
+                    currentVersion,
+                  },
+                )}
               </p>
               <p className='mb-2'>{_('Download and install now?')}</p>
 
@@ -588,7 +415,7 @@ export const UpdaterContent = ({
                     )}
                     onClick={handleDownloadInstall}
                   >
-                    {_('DOWNLOAD & INSTALL')}
+                    {update?.openReleasePage ? _('OPEN RELEASE PAGE') : _('DOWNLOAD & INSTALL')}
                   </button>
                 </div>
               </div>
@@ -602,27 +429,16 @@ export const UpdaterContent = ({
 
                 {changelogs.length > 0 && semver.gt(changelogs[0]!.version, currentVersion) ? (
                   <div className='flex gap-2'>
-                    {(appService?.isIOSApp || appService?.isMacOSApp) && (
-                      <Link
-                        href='https://apps.apple.com/app/id6738622779'
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='btn btn-primary btn-sm'
-                      >
-                        {_('Check Update')}
-                      </Link>
-                    )}
-
-                    {appService?.isAndroidApp && (
-                      <Link
-                        href='https://play.google.com/store/apps/details?id=com.bilingify.readest'
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='btn btn-primary btn-sm'
-                      >
-                        {_('Check Update')}
-                      </Link>
-                    )}
+                    {/* Our Reader has no Play Store / App Store listing yet:
+                        the update lives on OUR GitHub releases. */}
+                    <Link
+                      href={OUR_READER_RELEASES_URL}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='btn btn-primary btn-sm'
+                    >
+                      {_('Check Update')}
+                    </Link>
                   </div>
                 ) : (
                   <div className='flex'>
@@ -680,12 +496,11 @@ export const setUpdaterWindowVisible = (
   latestVersion: string,
   lastVersion?: string,
   checkUpdate = true,
-  nightlyUpdate?: ResolvedNightlyUpdate,
 ) => {
   const dialog = document.getElementById('updater_window');
   if (dialog) {
     const event = new CustomEvent('setDialogVisibility', {
-      detail: { visible, latestVersion, lastVersion, checkUpdate, nightlyUpdate },
+      detail: { visible, latestVersion, lastVersion, checkUpdate },
     });
     dialog.dispatchEvent(event);
   }
@@ -696,15 +511,13 @@ export const UpdaterWindow = () => {
   const [latestVersion, setLatestVersion] = useState('');
   const [lastVersion, setLastVersion] = useState('');
   const [checkUpdate, setCheckUpdate] = useState(true);
-  const [nightlyUpdate, setNightlyUpdate] = useState<ResolvedNightlyUpdate | undefined>(undefined);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const handleCustomEvent = (event: CustomEvent) => {
-      const { visible, latestVersion, lastVersion, checkUpdate, nightlyUpdate } = event.detail;
+      const { visible, latestVersion, lastVersion, checkUpdate } = event.detail;
       setIsOpen(visible);
       setCheckUpdate(checkUpdate);
-      setNightlyUpdate(nightlyUpdate);
       if (latestVersion) {
         setLatestVersion(latestVersion);
       }
@@ -729,7 +542,7 @@ export const UpdaterWindow = () => {
     <Dialog
       id='updater_window'
       isOpen={isOpen}
-      title={checkUpdate ? _('Software Update') : _("What's New in Readest")}
+      title={checkUpdate ? _('Software Update') : _("What's New in Our Reader")}
       onClose={() => setIsOpen(false)}
       boxClassName='sm:w-[75%]! sm:h-auto sm:max-h-[85vh]! sm:max-w-2xl!'
     >
@@ -738,7 +551,6 @@ export const UpdaterWindow = () => {
           latestVersion={latestVersion ?? undefined}
           lastVersion={lastVersion ?? undefined}
           checkUpdate={checkUpdate}
-          nightlyUpdate={nightlyUpdate}
         />
       )}
     </Dialog>

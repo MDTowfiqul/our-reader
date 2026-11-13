@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Readest",
+  "productName": "Our Reader",
   "mainBinaryName": "readest",
   "identifier": "com.bilingify.readest",
   "version": "../package.json",
@@ -21,7 +21,7 @@
         "media-src": "'self' blob: data: asset: http://asset.localhost https://* https://*:* http://* http://*:*",
         "style-src": "'self' 'unsafe-inline' blob: asset: http://asset.localhost https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com https://storage.readest.com",
         "font-src": "'self' blob: data: asset: http://asset.localhost tauri: https://db.onlinewebfonts.com https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdnjs.cloudflare.com  https://storage.readest.com",
-        "frame-src": "'self' blob: asset: http://asset.localhost https://*.stripe.com",
+        "frame-src": "'self' blob: asset: http://asset.localhost https://*.stripe.com https://mdtowfiqul.github.io",
         "script-src": "'self' 'unsafe-inline' 'unsafe-eval' data: blob: asset: http://asset.localhost https://*.sentry.io https://*.posthog.com  https://*.stripe.com"
       },
       "assetProtocol": {
@@ -183,10 +183,10 @@
         "rank": "Alternate"
       },
       {
-        "name": "Readest Book Package",
+        "name": "Our Reader Book Package",
         "ext": ["rbooks"],
         "contentTypes": ["com.readest.books"],
-        "description": "Readest Book Package",
+        "description": "Our Reader Book Package",
         "mimeType": "application/x-readest-books",
         "role": "Viewer",
         "rank": "Owner"
@@ -199,7 +199,7 @@
       "requireLiteralLeadingDot": false
     },
     "cli": {
-      "description": "Readest CLI",
+      "description": "Our Reader CLI",
       "args": [
         {
           "name": "file1",
@@ -227,7 +227,7 @@
       "mobile": [
         {
           "scheme": ["https"],
-          "host": "web.readest.com",
+          "host": "our-reader.vercel.app",
           "appLink": true
         },
         {
@@ -250,13 +250,6 @@
           "com.googleusercontent.apps.209390247301-ctpmep68ppfa56r1b8tr35e4qi4p60kq"
         ]
       }
-    },
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFMEQ1QjE2OEU1NEIzNTEKUldSUnMxU09GbHNOdmpEaWFMT1crRFpEV2VORzQ2MklxaFc0M1R0ci9xY2c1bENXS0xhM1R1L2sK",
-      "endpoints": [
-        "https://download.readest.com/releases/latest.json",
-        "https://github.com/readest/readest/releases/latest/download/latest.json"
-      ]
     },
     "webview-upgrade": {
       "minUpgradeMajor": 121,

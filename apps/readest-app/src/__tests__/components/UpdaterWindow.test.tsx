@@ -1,22 +1,19 @@
 /**
- * UpdaterContent — the "What's New in Readest" changelog.
+ * UpdaterContent — updates from OUR GitHub releases, and the "What's New in
+ * Our Reader" changelog.
  *
  * When the UI locale is non-English, the release notes are auto-translated in
  * place. These tests cover the "Show original" toggle that lets the reader flip
- * the auto-translated changelog back to the source English text (and back).
+ * the auto-translated changelog back to the source English text (and back),
+ * plus the Android APK download from OUR release asset.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-const { mockInstallNightlyUpdate } = vi.hoisted(() => ({
-  mockInstallNightlyUpdate: vi.fn(),
-}));
-
 // ── Locale + translation controls ────────────────────────────────
 let mockLocale = 'en';
 let mockOS = 'macos';
-let mockArch = 'aarch64';
 const mockTranslate = vi.fn(async (input: string[]) => input.map((s) => `[zh] ${s}`));
 
 vi.mock('@/utils/misc', () => ({
@@ -66,29 +63,24 @@ vi.mock('@/helpers/updater', async () => {
   const actual = await vi.importActual<typeof import('@/helpers/updater')>('@/helpers/updater');
   return {
     setLastShownReleaseNotesVersion: vi.fn(),
-    getAndroidPlatformKey: actual.getAndroidPlatformKey,
+    fetchOurLatestRelease: actual.fetchOurLatestRelease,
   };
 });
 
 vi.mock('@/services/constants', () => ({
-  READEST_UPDATER_FILE: 'https://example.com/latest.json',
-  READEST_CHANGELOG_FILE: 'https://example.com/release-notes.json',
-  READEST_UPDATER_PUBKEY: 'pk',
+  OUR_READER_RELEASES_LATEST_API_URL:
+    'https://api.github.com/repos/MDTowfiqul/our-reader/releases/latest',
+  OUR_READER_RELEASES_URL: 'https://github.com/MDTowfiqul/our-reader/releases/latest',
+  OUR_READER_RELEASE_APK_ASSET_NAME: 'our-reader-release-apk-arm64.apk',
 }));
 
 // ── Tauri / heavy modules pulled in by UpdaterWindow's top-level imports ──
-vi.mock('@tauri-apps/plugin-os', () => ({ type: () => mockOS, arch: () => mockArch }));
-vi.mock('@tauri-apps/plugin-updater', () => ({ check: vi.fn(), Update: class {} }));
-vi.mock('@tauri-apps/plugin-process', () => ({ relaunch: vi.fn(), exit: vi.fn() }));
+vi.mock('@tauri-apps/plugin-os', () => ({ type: () => mockOS, arch: () => 'aarch64' }));
 vi.mock('@tauri-apps/plugin-http', () => ({ fetch: vi.fn() }));
-vi.mock('@tauri-apps/plugin-shell', () => ({ Command: { create: vi.fn() } }));
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('@tauri-apps/api/path', () => ({ desktopDir: vi.fn(), join: vi.fn() }));
+vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }));
 vi.mock('@/utils/transfer', () => ({ tauriDownload: vi.fn() }));
 vi.mock('@/utils/bridge', () => ({
   installPackage: vi.fn(),
-  verifyUpdateSignature: vi.fn(),
-  installNightlyUpdate: mockInstallNightlyUpdate,
 }));
 vi.mock('next/image', () => ({ default: () => null }));
 vi.mock('@/components/Dialog', () => ({
@@ -100,23 +92,30 @@ import { UpdaterContent } from '@/components/UpdaterWindow';
 import { tauriDownload } from '@/utils/transfer';
 import { installPackage } from '@/utils/bridge';
 
-const RELEASE_NOTES = {
-  releases: {
-    '0.11.18': { date: '2026-07-08', notes: ['First feature', 'Second feature'] },
-  },
-};
+// ── Fixture: OUR GitHub release, as the releases API returns it ──
+const ourRelease = (tag: string) => ({
+  tag_name: `v${tag}`,
+  name: `Our Reader ${tag}`,
+  body: '- First feature\n- Second feature',
+  published_at: '2026-07-08T00:00:00Z',
+  html_url: `https://github.com/MDTowfiqul/our-reader/releases/tag/v${tag}`,
+  assets: [
+    {
+      name: 'our-reader-release-apk-arm64.apk',
+      browser_download_url: `https://example.com/our-reader-release-apk-arm64-${tag}.apk`,
+    },
+  ],
+});
 
 beforeEach(() => {
   mockLocale = 'en';
   mockOS = 'macos';
-  mockArch = 'aarch64';
   vi.mocked(tauriDownload).mockReset();
   vi.mocked(installPackage).mockReset();
   mockTranslate.mockClear();
-  mockInstallNightlyUpdate.mockReset();
   window.fetch = vi.fn(async () => ({
     ok: true,
-    json: async () => RELEASE_NOTES,
+    json: async () => ourRelease('0.11.18'),
   })) as unknown as typeof fetch;
 });
 
@@ -124,7 +123,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe('UpdaterContent — auto-translated changelog', () => {
+describe('UpdaterContent — OUR GitHub release updates', () => {
   it('contains a stable Android download failure and does not install a partial APK', async () => {
     mockOS = 'android';
     const failure = new Error('Response stream interrupted');
@@ -132,10 +131,7 @@ describe('UpdaterContent — auto-translated changelog', () => {
     vi.mocked(tauriDownload).mockRejectedValueOnce(failure);
     vi.mocked(window.fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        version: '0.11.20',
-        platforms: { 'android-arm64': { url: 'https://example.com/update.apk' } },
-      }),
+      json: async () => ourRelease('0.11.20'),
     } as Response);
 
     render(<UpdaterContent latestVersion='0.11.20' />);
@@ -146,31 +142,13 @@ describe('UpdaterContent — auto-translated changelog', () => {
     expect(installPackage).not.toHaveBeenCalled();
   });
 
-  // The manifest as release.yml publishes it after the per-ABI split, including
-  // the android-universal alias kept for pre-split clients.
-  const SPLIT_MANIFEST = {
-    version: '0.11.20',
-    platforms: {
-      'android-arm64': { url: 'https://example.com/Readest_0.11.20_arm64.apk' },
-      'android-armv7': { url: 'https://example.com/Readest_0.11.20_armv7.apk' },
-      'android-legacy': { url: 'https://example.com/Readest_0.11.20_legacy.apk' },
-      'android-universal': { url: 'https://example.com/Readest_0.11.20_armv7.apk' },
-    },
-  };
-
-  it.each([
-    ['aarch64', 'arm64'],
-    ['arm', 'armv7'],
-    ['x86_64', 'legacy'],
-    ['x86', 'legacy'],
-  ])('on %s downloads the %s APK', async (arch, abi) => {
+  it('on Android downloads OUR single release APK asset', async () => {
     mockOS = 'android';
-    mockArch = arch;
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.mocked(tauriDownload).mockRejectedValueOnce(new Error('stop'));
     vi.mocked(window.fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => SPLIT_MANIFEST,
+      json: async () => ourRelease('0.11.20'),
     } as Response);
 
     render(<UpdaterContent latestVersion='0.11.20' />);
@@ -178,35 +156,9 @@ describe('UpdaterContent — auto-translated changelog', () => {
 
     await waitFor(() => expect(tauriDownload).toHaveBeenCalledOnce());
     expect(vi.mocked(tauriDownload).mock.calls[0]!.slice(0, 2)).toEqual([
-      `https://example.com/Readest_0.11.20_${abi}.apk`,
-      `/cache/Readest_0.11.20_${abi}.apk`,
+      'https://example.com/our-reader-release-apk-arm64-0.11.20.apk',
+      '/cache/OurReader_0.11.20_arm64.apk',
     ]);
-  });
-
-  it('contains download failures and shows an updater error', async () => {
-    const failure = 'Download request failed with status: 403 Forbidden';
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockInstallNightlyUpdate.mockRejectedValueOnce(failure);
-
-    render(
-      <UpdaterContent
-        latestVersion='0.11.20'
-        nightlyUpdate={{
-          endpoint: 'https://example.com/nightly.json',
-          version: '0.11.20',
-          platformKey: 'windows-x86_64',
-          url: 'https://example.com/readest.exe',
-          signature: 'signature',
-        }}
-      />,
-    );
-
-    fireEvent.click(await screen.findByRole('button', { name: 'DOWNLOAD & INSTALL' }));
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to download and install update')).toBeTruthy();
-    });
-    expect(consoleError).toHaveBeenCalledWith('Failed to download and install update:', failure);
   });
 
   it('shows a "Show original" toggle that swaps the translation for the source English', async () => {

@@ -817,7 +817,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           { id: 'kokoro:zf_001', name: 'Zifang', lang: 'zh-CN', tier: 'plus' as const },
           { id: 'omnivoice:xiaoyu', name: 'Xiaoyu', lang: 'zh-CN', tier: 'pro' as const },
@@ -827,7 +827,7 @@ describe('TTSPlayerSheet', () => {
     ];
     render(<TTSPlayerSheet {...makeProps({ onGetVoices: vi.fn().mockResolvedValue(groups) })} />);
     fireEvent.click(screen.getByLabelText('Voice'));
-    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /Readest Voice/ })));
+    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /Our Reader Voice/ })));
     const row = (name: string) => screen.getByText(name).closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).textContent).toBe('XiaoyuPro');
     expect(row('Zifang').textContent).toBe('ZifangPlus');
@@ -839,7 +839,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'omnivoice:xiaoyu',
@@ -916,7 +916,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest-tts',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'omnivoice:clara',
@@ -942,7 +942,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest-tts',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'kokoro:af_heart',

@@ -136,7 +136,7 @@ const saveCatalog = (voices: TTSVoice[]) => {
 
 export class ReadestVoiceProvider implements SpeechProvider {
   readonly id = 'readest-tts';
-  readonly label = 'Readest Voice';
+  readonly label = 'Our Reader Voice';
   readonly cacheable = true;
   // A sentence in a language without a Readest voice is skipped, never read
   // with a wrong-language voice.
@@ -207,7 +207,7 @@ export class ReadestVoiceProvider implements SpeechProvider {
     // it with a wrong-language voice.
     if (!req.voice) {
       return Promise.reject(
-        new SpeechSynthesisPermanentError('no Readest Voice for this language'),
+        new SpeechSynthesisPermanentError('no Our Reader Voice for this language'),
       );
     }
     if (signal.aborted) return Promise.reject(abortError());

@@ -25,11 +25,11 @@ export const metadata: Metadata = {
   description,
   generator: 'Next.js',
   manifest: '/manifest.json',
-  keywords: ['epub', 'pdf', 'ebook', 'reader', 'readest', 'pwa'],
+  keywords: ['epub', 'pdf', 'ebook', 'reader', 'our-reader', 'pwa'],
   authors: [
     {
-      name: 'readest',
-      url: 'https://github.com/readest/readest',
+      name: 'our-reader',
+      url: 'https://github.com/MDTowfiqul/our-reader',
     },
   ],
   icons: {

@@ -19,7 +19,7 @@ import {
 type LayoutFn = (input: QuoteCardInput, measure: MeasureText) => QuoteCardLayout;
 
 // Brand mark, never translated.
-const LOGO_TEXT = 'Readest';
+const LOGO_TEXT = 'Our Reader';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
