@@ -60,6 +60,7 @@ jobs:
         run: |
           rm -rf src-tauri/gen/android
           pnpm tauri android init
+          git checkout .
           pnpm tauri android build --debug -t aarch64
 
       - name: upload APK
