@@ -10,7 +10,7 @@ import { SettingsPanelPanelProp } from './SettingsDialog';
 import { saveViewSettings } from '@/helpers/settings';
 import { validateCSS, formatCSS } from '@/utils/css';
 import { getStyles } from '@/utils/style';
-import { BoxedList } from './primitives';
+import { BoxedList, Tips } from './primitives';
 
 type CSSType = 'book' | 'reader';
 
@@ -194,6 +194,38 @@ const MiscPanel: React.FC<SettingsPanelPanelProp> = ({ bookKey, onRegisterReset 
         inputFocusInAndroid && 'h-[50%] overflow-y-auto pb-[200px]',
       )}
     >
+      <BoxedList title={_('What is this?')}>
+        <div className='flex flex-col gap-2 py-3 pe-4 text-sm leading-relaxed'>
+          <p>
+            {_(
+              'Custom CSS lets you change how books and the reader look, beyond the Font and Theme settings.',
+            )}
+          </p>
+          <p>
+            {_('Custom Content CSS styles the inside of a book — the text you read. For example:')}
+          </p>
+          <p>
+            <code className='bg-base-200 rounded px-1'>p {'{ line-height: 1.8; }'}</code>
+          </p>
+          <p>
+            {_(
+              'Custom Reader UI CSS styles the reader around the book — its toolbars, menus and panels. It does not change the book text itself, which lives in its own frame.',
+            )}
+          </p>
+          <p>
+            {_(
+              'Changes apply to the book you have open, or to all books when no book is open. Leave a box empty to use the defaults.',
+            )}
+          </p>
+        </div>
+      </BoxedList>
+      <Tips>
+        <li>
+          {_('Bad CSS can break the layout — if the reader looks wrong, clear the box and Apply.')}
+        </li>
+        <li>{_('Reset in the Settings menu restores the defaults for this panel.')}</li>
+      </Tips>
+
       {renderCSSEditor(
         'book',
         _('Custom Content CSS'),

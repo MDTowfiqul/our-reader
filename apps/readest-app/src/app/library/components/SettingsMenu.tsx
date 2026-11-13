@@ -1,9 +1,8 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import { PiUserCircle, PiUserCircleCheck, PiGear, PiChartBar } from 'react-icons/pi';
-import { PiSun, PiMoon } from 'react-icons/pi';
 import { TbSunMoon } from 'react-icons/tb';
-import { MdCloudSync, MdSync, MdSyncProblem, MdOutlineSensors } from 'react-icons/md';
+import { MdCloudSync, MdSync, MdSyncProblem } from 'react-icons/md';
 
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { isTauriAppPlatform } from '@/services/environment';
@@ -36,7 +35,6 @@ import {
   isBiometricSupported,
 } from '@/services/biometric';
 import { selectDirectory } from '@/utils/bridge';
-import { nextThemeMode } from '@/utils/ambientLight';
 import UserAvatar from '@/components/UserAvatar';
 import MenuItem from '@/components/MenuItem';
 import Quota from '@/components/Quota';
@@ -48,15 +46,27 @@ interface SettingsMenuProps {
   setIsDropdownOpen?: (isOpen: boolean) => void;
 }
 
+/** Themes offered in the library menu's Theme submenu (Settings → Theme has the full list). */
+const THEME_MENU_OPTIONS = [
+  { name: 'emerald', label: 'Emerald' },
+  { name: 'default', label: 'Default' },
+  { name: 'sepia', label: 'Sepia' },
+  { name: 'nord', label: 'Nord' },
+  { name: 'gruvbox', label: 'Gruvbox' },
+  { name: 'solarized', label: 'Solarized' },
+  { name: 'ocean', label: 'Ocean' },
+  { name: 'midnight', label: 'Midnight' },
+  { name: 'paper', label: 'Paper' },
+];
+
 const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdownOpen }) => {
   const _ = useTranslation();
   const router = useAppRouter();
   const { envConfig, appService } = useEnv();
   const { user } = useAuth();
   const { quotas } = useQuotaStats(true);
-  const { themeMode, setThemeMode } = useThemeStore();
-  const { settings, setSettingsDialogOpen, setRequestedPanel, setRequestedSubPage } =
-    useSettingsStore();
+  const { themeColor, setScopedThemeColor } = useThemeStore();
+  const { settings, setSettingsDialogOpen, setRequestedPanel } = useSettingsStore();
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(settings.alwaysOnTop);
   const [isAlwaysShowStatusBar, setIsAlwaysShowStatusBar] = useState(settings.alwaysShowStatusBar);
   const [isOpenLastBooks, setIsOpenLastBooks] = useState(settings.openLastBooks);
@@ -118,8 +128,8 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
   const handleDriveSignIn = async () => {
     setIsDropdownOpen?.(false);
     if (settings.googleDrive?.enabled) {
-      setRequestedPanel('Integrations');
-      setRequestedSubPage('gdrive');
+      // Cloud Backup shows Google Drive inline — no sub-page to drill into.
+      setRequestedPanel('CloudBackup');
       setSettingsDialogOpen(true);
       return;
     }
@@ -145,10 +155,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
   const handleManageSync = () => {
     router.push('/user?section=sync');
     setIsDropdownOpen?.(false);
-  };
-
-  const cycleThemeMode = () => {
-    setThemeMode(nextThemeMode(themeMode, !!appService?.hasAmbientLightSensor));
   };
 
   const handleFullScreen = () => {
@@ -270,15 +276,6 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
   const avatarUrl = user?.user_metadata?.['picture'] || user?.user_metadata?.['avatar_url'];
   const userFullName = user?.user_metadata?.['full_name'];
   const userDisplayName = userFullName ? userFullName.split(' ')[0] : null;
-  const themeModeLabel =
-    themeMode === 'dark'
-      ? _('Dark Mode')
-      : themeMode === 'light'
-        ? _('Light Mode')
-        : themeMode === 'ambient'
-          ? _('Ambient Mode')
-          : _('Auto Mode');
-
   const savedBookCoverPath = settings.savedBookCoverForLockScreenPath;
   const coverDir = savedBookCoverPath ? savedBookCoverPath.split('/').pop() : 'Images';
   const savedBookCoverDescription = `💾 ${coverDir}/last-book-cover.png`;
@@ -427,19 +424,31 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ onPullLibrary, setIsDropdow
           onClick={toggleAlwaysShowStatusBar}
         />
       )}
-      <MenuItem
-        label={themeModeLabel}
-        Icon={
-          themeMode === 'dark'
-            ? PiMoon
-            : themeMode === 'light'
-              ? PiSun
-              : themeMode === 'ambient'
-                ? MdOutlineSensors
-                : TbSunMoon
-        }
-        onClick={cycleThemeMode}
-      />
+      {/* Light/Dark mode still lives in Settings → Theme (ThemeModeSelector);
+          the menu now picks a colour theme instead of cycling the mode. */}
+      <MenuItem label={_('Theme')} Icon={TbSunMoon}>
+        <ul className='ms-0 flex flex-col ps-0 before:hidden'>
+          {THEME_MENU_OPTIONS.map(({ name, label }) => (
+            <MenuItem
+              key={name}
+              label={_(label)}
+              toggled={themeColor === name}
+              onClick={() => {
+                setScopedThemeColor('library', name);
+                setIsDropdownOpen?.(false);
+              }}
+            />
+          ))}
+          <MenuItem
+            label={_('More themes…')}
+            onClick={() => {
+              setRequestedPanel('Theme');
+              setSettingsDialogOpen(true);
+              setIsDropdownOpen?.(false);
+            }}
+          />
+        </ul>
+      </MenuItem>
       <MenuItem label={_('Reading Statistics')} Icon={PiChartBar} onClick={openReadingStats} />
       <MenuItem
         label={_('Reader Dashboard')}

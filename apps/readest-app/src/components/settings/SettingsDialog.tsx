@@ -24,7 +24,7 @@ import { getCommandPaletteShortcut } from '@/services/environment';
 import FontPanel from './FontPanel';
 import LayoutPanel from './LayoutPanel';
 import ThemePanel from './ThemePanel';
-import IntegrationsPanel from './IntegrationsPanel';
+import CloudBackupPanel from './CloudBackupPanel';
 import Dropdown from '@/components/Dropdown';
 import Dialog from '@/components/Dialog';
 import DialogMenu from './DialogMenu';
@@ -42,7 +42,7 @@ export type SettingsPanelType =
   | 'TTS'
   | 'Language'
   | 'AI'
-  | 'Integrations'
+  | 'CloudBackup'
   | 'Custom';
 export type SettingsPanelPanelProp = {
   bookKey: string;
@@ -116,9 +116,9 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       label: _('Language'),
     },
     {
-      tab: 'Integrations',
+      tab: 'CloudBackup',
       icon: RiShareLine,
-      label: _('Integrations'),
+      label: _('Cloud Backup'),
     },
     {
       // Our Reader: the AI tab is visible in production too — the user's
@@ -141,13 +141,17 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   const [activePanel, setActivePanel] = useState<SettingsPanelType>(() => {
     // Deep-link: if a caller asked for a specific panel before opening the
-    // dialog, honor that for the initial state. The store-clear lives in
-    // a useEffect below so we never call a zustand setter during render
-    // (would warn "Cannot update a component while rendering another").
-    if (requestedPanel && tabConfig.some((tab) => tab.tab === requestedPanel)) {
-      return requestedPanel as SettingsPanelType;
+    // dialog, honor that for the initial state. 'Integrations' is the old
+    // name of the Cloud Backup panel — callers that still use it (OPDS
+    // close, LocalSend, Hardcover) land on Cloud Backup instead.
+    const requested = requestedPanel === 'Integrations' ? 'CloudBackup' : requestedPanel;
+    if (requested && tabConfig.some((tab) => tab.tab === requested)) {
+      return requested as SettingsPanelType;
     }
-    const lastPanel = localStorage.getItem('lastConfigPanel');
+    const lastPanel =
+      localStorage.getItem('lastConfigPanel') === 'Integrations'
+        ? 'CloudBackup'
+        : localStorage.getItem('lastConfigPanel');
     if (lastPanel && tabConfig.some((tab) => tab.tab === lastPanel)) {
       return lastPanel as SettingsPanelType;
     }
@@ -306,7 +310,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
     TTS: null,
     Language: null,
     AI: null,
-    Integrations: null,
+    CloudBackup: null,
     Custom: null,
   });
 
@@ -340,7 +344,8 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         tts: 'TTS',
         language: 'Language',
         ai: 'AI',
-        integrations: 'Integrations',
+        integrations: 'CloudBackup',
+        cloudbackup: 'CloudBackup',
         custom: 'Custom',
       };
       const panelKey = parts[1]?.toLowerCase();
@@ -600,7 +605,7 @@ const SettingsDialog: React.FC<{ bookKey: string }> = ({ bookKey }) => {
           />
         )}
         {activePanel === 'AI' && <AIPanel />}
-        {activePanel === 'Integrations' && <IntegrationsPanel />}
+        {activePanel === 'CloudBackup' && <CloudBackupPanel />}
         {activePanel === 'Custom' && (
           <MiscPanel
             bookKey={bookKey}

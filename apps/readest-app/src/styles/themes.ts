@@ -229,6 +229,38 @@ export const themes = [
       dark: generateDarkPalette({ fg: '#f6e1d7', bg: '#3c2b25', primary: '#ff9c94' }),
     },
   },
+  {
+    name: 'emerald',
+    label: _('Emerald'),
+    colors: {
+      light: generateLightPalette({ fg: '#1c2b22', bg: '#f2f7f3', primary: '#0b6b4a' }),
+      dark: generateDarkPalette({ fg: '#d9e8dd', bg: '#12261d', primary: '#4ade9e' }),
+    },
+  },
+  {
+    name: 'midnight',
+    label: _('Midnight'),
+    colors: {
+      light: generateLightPalette({ fg: '#1b2340', bg: '#eef1f6', primary: '#2b3a67' }),
+      dark: generateDarkPalette({ fg: '#dbe4ff', bg: '#0d1526', primary: '#7aa2ff' }),
+    },
+  },
+  {
+    name: 'ocean',
+    label: _('Ocean'),
+    colors: {
+      light: generateLightPalette({ fg: '#12333a', bg: '#eaf6f8', primary: '#0e7c8c' }),
+      dark: generateDarkPalette({ fg: '#d2eef2', bg: '#0a2e35', primary: '#4cc3d4' }),
+    },
+  },
+  {
+    name: 'paper',
+    label: _('Paper'),
+    colors: {
+      light: generateLightPalette({ fg: '#2e2a20', bg: '#faf6ec', primary: '#8a6d3b' }),
+      dark: generateDarkPalette({ fg: '#f0e8d5', bg: '#2b2620', primary: '#d9b36c' }),
+    },
+  },
 ] as Theme[];
 
 const themeBlock = (name: string, palette: Palette, scheme: ColorScheme): string => {

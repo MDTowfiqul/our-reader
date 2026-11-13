@@ -110,10 +110,11 @@ const getInitialThemeMode = (): ThemeMode => {
 
 const getInitialThemeColor = (): string => {
   if (typeof window !== 'undefined' && localStorage) {
-    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'default';
+    // New users start on Emerald (e-ink still starts on Contrast).
+    const defaultColor = window.__READEST_IS_EINK ? 'contrast' : 'emerald';
     return localStorage.getItem('themeColor') || defaultColor;
   }
-  return 'default';
+  return 'emerald';
 };
 
 const getInitialLibraryThemeMode = (): ThemeMode | null => {
@@ -366,14 +367,14 @@ export const useThemeStore = create<ThemeState>((set, get) => {
     resetThemeScopes: () => {
       if (typeof window !== 'undefined' && localStorage) {
         localStorage.setItem('themeMode', 'auto');
-        localStorage.setItem('themeColor', 'default');
+        localStorage.setItem('themeColor', 'emerald');
         localStorage.removeItem(LIBRARY_THEME_MODE_KEY);
         localStorage.removeItem(LIBRARY_THEME_COLOR_KEY);
       }
       const activeMode = applyActiveScope(
         {
           readerThemeMode: 'auto',
-          readerThemeColor: 'default',
+          readerThemeColor: 'emerald',
           libraryThemeMode: null,
           libraryThemeColor: null,
         },
