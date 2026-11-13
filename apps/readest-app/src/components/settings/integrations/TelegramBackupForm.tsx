@@ -6,7 +6,7 @@ import { createBackupZip } from '@/services/backupService';
 import { getAIFetch } from '@/services/ai/utils/httpFetch';
 import { eventDispatcher } from '@/utils/event';
 import type { TelegramBackupSettings } from '@/types/settings';
-import { BoxedList, SettingLabel, SettingsSwitchRow, Tips } from './primitives';
+import { BoxedList, SettingLabel, SettingsSwitchRow, Tips } from '../primitives';
 
 const DEFAULT_TELEGRAM_BACKUP: TelegramBackupSettings = {
   enabled: false,
