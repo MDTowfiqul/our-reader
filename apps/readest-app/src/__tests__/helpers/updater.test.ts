@@ -313,6 +313,7 @@ describe('updater', () => {
 
     test('returns false for unsupported OS types', async () => {
       mockOsType.mockReturnValue('ios');
+      mockTauriFetch.mockResolvedValue(mockReleaseResponse(releasePayload()));
 
       const result = await checkForAppUpdates(dummyTranslate, false);
 

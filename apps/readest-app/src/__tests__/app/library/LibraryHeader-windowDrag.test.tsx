@@ -111,6 +111,7 @@ describe('LibraryHeader window drag (#6917)', () => {
         isSelectAll={false}
         onPullLibrary={vi.fn()}
         onImportBooksFromFiles={vi.fn()}
+        onOpenBoighar={vi.fn()}
         onOpenCatalogManager={vi.fn()}
         onOpenFeeds={vi.fn()}
         onToggleSelectMode={vi.fn()}

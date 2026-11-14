@@ -83,7 +83,9 @@ impl ClipOptions {
             .unwrap_or("Saving to your Our Reader library…")
     }
     fn overlay_title(&self) -> &str {
-        self.overlay_title.as_deref().unwrap_or("Saving to Our Reader")
+        self.overlay_title
+            .as_deref()
+            .unwrap_or("Saving to Our Reader")
     }
     fn loading_status(&self) -> &str {
         self.loading_status.as_deref().unwrap_or("Loading article…")

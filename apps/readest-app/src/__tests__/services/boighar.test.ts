@@ -72,7 +72,8 @@ describe('resolveBoigharEpubUrl', () => {
   test('uses the EPUB link found on the book page', async () => {
     const fetchFn = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => '<html><a href="/books/al-quran-ek-mohabismoy.epub">Download</a></html>',
+      text: async () =>
+        '<html><a href="/our-boighar/books/al-quran-ek-mohabismoy.epub">Download</a></html>',
     });
 
     expect(await resolveBoigharEpubUrl(pageUrl, fetchFn as never)).toBe(

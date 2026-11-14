@@ -48,12 +48,12 @@ export const fetchBoigharIndex = async (fetchFn?: FetchFn): Promise<BoigharBook[
         (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null,
       )
       .map((entry) => ({
-        title: typeof entry.title === 'string' ? entry.title : '',
-        titleEn: typeof entry.title_en === 'string' ? entry.title_en : '',
-        author: typeof entry.author === 'string' ? entry.author : '',
-        language: typeof entry.language === 'string' ? entry.language : '',
-        cover: typeof entry.cover === 'string' ? toAbsoluteUrl(entry.cover) : '',
-        pageUrl: typeof entry.url === 'string' ? toAbsoluteUrl(entry.url) : '',
+        title: typeof entry['title'] === 'string' ? entry['title'] : '',
+        titleEn: typeof entry['title_en'] === 'string' ? entry['title_en'] : '',
+        author: typeof entry['author'] === 'string' ? entry['author'] : '',
+        language: typeof entry['language'] === 'string' ? entry['language'] : '',
+        cover: typeof entry['cover'] === 'string' ? toAbsoluteUrl(entry['cover']) : '',
+        pageUrl: typeof entry['url'] === 'string' ? toAbsoluteUrl(entry['url']) : '',
       }))
       .filter((book) => book.title && book.pageUrl);
   } catch {
