@@ -7,7 +7,7 @@ import { needsProxy, getProxiedURL, probeAuth, probeFilename } from '@/app/opds/
 import { resolveURL, parseMediaType, getFileExtFromPath } from '@/app/opds/utils/opdsUtils';
 import { normalizeCustomHeaders } from '@/utils/customHeaders';
 import { allowsSelfSignedCertAt } from '@/utils/tls';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { applyOPDSCover } from './cover';
 import { applyOPDSMetadata } from './metadata';
 import { checkFeedForNewItems } from './feedChecker';
@@ -71,7 +71,7 @@ async function downloadAndImport(
 
   const downloadUrl = useProxy ? getProxiedURL(url, true, customHeaders) : url;
   const headers: Record<string, string> = {
-    'User-Agent': READEST_OPDS_USER_AGENT,
+    'User-Agent': OUR_READER_OPDS_USER_AGENT,
     Accept: '*/*',
     ...(!useProxy ? customHeaders : {}),
   };

@@ -179,7 +179,7 @@ export const AboutWindow = () => {
             dir='ltr'
           >
             <p className='text-neutral-content text-sm'>
-              © {new Date().getFullYear()} Bilingify LLC. All rights reserved.
+              © {new Date().getFullYear()} Our Family. All rights reserved.
             </p>
 
             <p className='text-neutral-content text-xs'>
@@ -202,13 +202,6 @@ export const AboutWindow = () => {
                 GitHub
               </Link>
               .
-            </p>
-            <p className='text-neutral-content text-xs'>
-              Based on{' '}
-              <Link href='https://github.com/readest/readest' className='text-blue-500 underline'>
-                Readest
-              </Link>
-              , an open-source ebook reader.
             </p>
           </div>
           <SupportLinks />

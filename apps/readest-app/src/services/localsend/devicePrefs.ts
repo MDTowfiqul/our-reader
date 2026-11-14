@@ -10,7 +10,7 @@ const ALIAS_KEY = 'readest-localsend-alias';
 // (AirDrop-style "<name>'s Readest"). The `{{name}}` placeholder is filled by
 // the real `_()` in LocalSendManager; `stubTranslation` here only registers
 // the key for extraction (the scanner reads `_('...')` literals).
-export const DEFAULT_ALIAS_NAMED_KEY = _("{{name}}'s Readest");
+export const DEFAULT_ALIAS_NAMED_KEY = _("{{name}}'s Our Reader");
 
 /**
  * Whether this device runs the LocalSend service. Defaults to true.

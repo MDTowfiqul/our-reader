@@ -1005,26 +1005,25 @@ export const SHARE_TOKEN_LENGTH = 22;
 export const SHARE_PRESIGN_TTL_SECONDS = 300;
 export const SHARE_CFI_MAX_LENGTH = 512;
 
-const LATEST_DOWNLOAD_BASE_URL = 'https://download.readest.com/releases';
+// Our Reader updates come from OUR GitHub releases, never from upstream
+// Readest: the app must never offer a Readest release. The GitHub releases
+// API returns the latest release (tag, notes, assets); the Android APK is
+// the `our-reader-release-apk-arm64.apk` asset. There is no nightly channel
+// for Our Reader — updateChannel 'nightly' is a no-op in the updater.
+export const OUR_READER_GITHUB_REPO = 'MDTowfiqul/our-reader';
 
-export const READEST_UPDATER_FILE = `${LATEST_DOWNLOAD_BASE_URL}/latest.json`;
+export const OUR_READER_RELEASES_LATEST_API_URL = `https://api.github.com/repos/${OUR_READER_GITHUB_REPO}/releases/latest`;
 
-export const READEST_CHANGELOG_FILE = `${LATEST_DOWNLOAD_BASE_URL}/release-notes.json`;
+export const OUR_READER_RELEASES_URL = `https://github.com/${OUR_READER_GITHUB_REPO}/releases/latest`;
 
-export const READEST_NIGHTLY_UPDATER_FILE = 'https://download.readest.com/nightly/latest.json';
-
-// Public (verification) key, identical to src-tauri/tauri.conf.json `updater.pubkey`.
-// Used to verify nightly artifacts in the custom install flows (portable /
-// AppImage / Android). Safe to embed — it is a public key.
-export const READEST_UPDATER_PUBKEY =
-  'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFMEQ1QjE2OEU1NEIzNTEKUldSUnMxU09GbHNOdmpEaWFMT1crRFpEV2VORzQ2MklxaFc0M1R0ci9xY2c1bENXS0xhM1R1L2sK';
+export const OUR_READER_RELEASE_APK_ASSET_NAME = 'our-reader-release-apk-arm64.apk';
 
 export const READEST_PUBLIC_STORAGE_BASE_URL = 'https://storage.readest.com';
 // Custom domain serving the readest-public bucket; durable media assets
 // (e.g. published book covers) are linked through this host.
 export const READEST_PUBLIC_ASSETS_BASE_URL = 'https://assets.readest.com';
 
-export const READEST_OPDS_USER_AGENT = 'Readest/1.0 (OPDS Browser)';
+export const OUR_READER_OPDS_USER_AGENT = 'OurReader/1.0 (OPDS Browser)';
 
 export const SYNC_PROGRESS_INTERVAL_SEC = 3;
 export const SYNC_NOTES_INTERVAL_SEC = 5;

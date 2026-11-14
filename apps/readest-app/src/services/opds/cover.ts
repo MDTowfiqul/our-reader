@@ -5,7 +5,7 @@ import type { OPDSGenericLink } from '@/types/opds';
 import { REL } from '@/types/opds';
 import { downloadFile } from '@/libs/storage';
 import { getProxiedURL, needsProxy, probeAuth } from '@/app/opds/utils/opdsReq';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { getCoverFilename } from '@/utils/book';
 import { uniqueId } from '@/utils/misc';
 
@@ -86,7 +86,7 @@ export const applyOPDSCover = async ({
   const useProxy = needsProxy(coverUrl);
   const downloadUrl = useProxy ? getProxiedURL(coverUrl, true, customHeaders) : coverUrl;
   const headers: Record<string, string> = {
-    'User-Agent': READEST_OPDS_USER_AGENT,
+    'User-Agent': OUR_READER_OPDS_USER_AGENT,
     Accept: 'image/*',
     ...(!useProxy ? customHeaders : {}),
   };

@@ -70,7 +70,7 @@ fn deserializes_the_configure_screen_catalog() {
       "shelves": [{"id":"recent","name":"Recently read"}],
       "labels": {"title":"Bookshelf","rows":"Rows","columns":"Columns","showTitles":"Book Title",
                  "showShelfName":"Show Header","headerSize":"Header Size","showTtsBar":"Text to Speech","cancel":"Cancel","save":"Save","edit":"Edit",
-                 "openApp":"Open Readest"}
+                 "openApp":"Open Our Reader"}
     }"#;
     let catalog: BookshelfWidgetCatalog = serde_json::from_str(json).unwrap();
     assert_eq!(catalog.shelves[0].name, "Recently read");

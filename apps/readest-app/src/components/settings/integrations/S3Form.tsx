@@ -164,7 +164,7 @@ const S3Form: React.FC = () => {
         <input
           id='s3-bucket'
           type='text'
-          placeholder='readest'
+          placeholder='our-reader'
           className='input eink-bordered h-11 w-full text-sm focus:outline-hidden'
           spellCheck='false'
           value={bucket}

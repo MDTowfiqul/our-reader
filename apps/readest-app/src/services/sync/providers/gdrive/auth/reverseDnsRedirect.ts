@@ -1,7 +1,7 @@
 /**
  * The reverse-DNS OAuth redirect shared by every platform's runner.
  *
- * Readest uses ONE iOS-type Google client (no secret, no SHA-1) on every
+ * The app uses ONE iOS-type Google client (no secret, no SHA-1) on every
  * platform, whose only Google-accepted redirect is the reverse-DNS "iOS URL
  * scheme" — {@link GOOGLE_OAUTH_REDIRECT_SCHEME_PREFIX} followed by the client
  * id's identifier part. Both the desktop deep-link runner and the Android

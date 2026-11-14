@@ -22,7 +22,16 @@ import { createDriveTokenPersistence } from './driveTokenStore';
  * baked into the build so Drive sync works for every user out of the box. The
  * only runtime client — there is no BYO, because the redirect scheme is derived
  * from this id and registered in the platform manifests at build time (the
- * `com.googleusercontent.apps.<id>` schemes in `tauri.conf.json`). A forker
+ * `com.googleusercontent.apps.<id>` schemes in `tauri.conf.json`).
+ *
+ * OUR READER: this is still Readest's client, so Google's consent screen shows
+ * "Readest" until the fork ships its own client. To fix that, create an iOS-type
+ * OAuth client in your own Google Cloud project (enable the Drive API first),
+ * name its OAuth consent screen "Our Reader", and bake the new client id in via
+ * `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build time — the redirect scheme is derived
+ * from the id, so the `com.googleusercontent.apps.<id>` schemes in
+ * `tauri.conf.json` and the generated `AndroidManifest.xml` must be rewritten
+ * to match (the release workflow does this after `git checkout .`). A forker
  * overrides it via `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at build (and must regenerate
  * the manifest schemes to match). The client id is NOT a secret — it ships
  * inside the app binary.
@@ -41,6 +50,12 @@ export const getGoogleClientId = (): string | undefined =>
  * Not a secret — it ships in the web bundle. A forker overrides it via
  * `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` and must register their own deploy origin
  * on that client.
+ *
+ * OUR READER: same story as the native client above — this is Readest's web
+ * client, so web sign-in also shows "Readest". A fork web client needs the
+ * deploy origin (e.g. `https://our-reader.vercel.app`) registered as an
+ * authorized JavaScript origin on it, and `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+ * set on the web host (Vercel env var for our-reader.vercel.app).
  */
 const OFFICIAL_GOOGLE_WEB_CLIENT_ID =
   '209390247301-585tc3dohg4c02588uvah5d32hg6dneq.apps.googleusercontent.com';
