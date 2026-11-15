@@ -199,7 +199,7 @@ const ProfilePage = () => {
       <div className='mx-auto max-w-4xl px-4 py-8'>
         <div className='overflow-hidden rounded-lg shadow-md'>
           <div className='flex min-h-[300px] items-center justify-center p-6'>
-            <div className='text-base-content animate-pulse'>{_('Loading profile...')}</div>
+            <div className='text-base-content'>{_('Loading profile...')}</div>
           </div>
         </div>
       </div>

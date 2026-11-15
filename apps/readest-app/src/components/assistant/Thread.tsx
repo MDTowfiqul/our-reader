@@ -52,7 +52,7 @@ const LoadingOverlay: FC<{ isVisible: boolean }> = ({ isVisible }) => {
       className={cn(
         'absolute inset-0 z-20 flex items-center justify-center',
         'bg-base-100/60 backdrop-blur-xs',
-        'transition-all duration-300 ease-out',
+        'transition-opacity duration-300 ease-out',
         isVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
       )}
     >
@@ -204,7 +204,7 @@ export const Thread: FC<ThreadProps> = ({
               AI can make mistakes. Verify with the book.
             </p>
             <div
-              className={cn('shrink transition-all duration-300', getSpacerHeight())}
+              className={cn('shrink transition-[height] duration-300', getSpacerHeight())}
               aria-hidden='true'
             />
           </ThreadPrimitive.Viewport>
@@ -233,7 +233,7 @@ const Composer: FC<ComposerProps> = ({ onClear, onResetIndex }) => {
       data-empty={isEmpty}
       data-running={isRunning}
     >
-      <div className='bg-base-200 ring-base-content/10 focus-within:ring-base-content/20 overflow-hidden rounded-2xl shadow-xs ring-1 ring-inset transition-all duration-200'>
+      <div className='bg-base-200 ring-base-content/10 focus-within:ring-base-content/20 overflow-hidden rounded-2xl shadow-xs ring-1 ring-inset transition-[box-shadow] duration-200'>
         <div className='flex items-end gap-0.5 p-1.5'>
           {onClear && (
             <button
@@ -265,16 +265,16 @@ const Composer: FC<ComposerProps> = ({ onClear, onResetIndex }) => {
           />
 
           <div className='bg-base-content text-base-100 relative mb-0.5 size-7 shrink-0 rounded-full'>
-            <ComposerPrimitive.Send className='absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:opacity-0'>
+            <ComposerPrimitive.Send className='absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:opacity-0'>
               <ArrowUpIcon className='size-3.5' />
             </ComposerPrimitive.Send>
 
-            <ComposerPrimitive.Cancel className='absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[running=false]/composer:scale-0 group-data-[running=false]/composer:opacity-0'>
+            <ComposerPrimitive.Cancel className='absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-300 ease-out group-data-[running=false]/composer:scale-0 group-data-[running=false]/composer:opacity-0'>
               <SquareIcon className='size-3' fill='currentColor' />
             </ComposerPrimitive.Cancel>
 
             {/* Placeholder when empty and not running */}
-            <div className='absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:opacity-0'>
+            <div className='absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:opacity-0'>
               <ArrowUpIcon className='size-3.5 opacity-40' />
             </div>
           </div>

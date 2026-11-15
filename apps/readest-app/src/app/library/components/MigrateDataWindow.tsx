@@ -394,7 +394,7 @@ export const MigrateDataWindow = () => {
 
               <div className='bg-base-200 h-2 w-full rounded-full'>
                 <div
-                  className='bg-primary h-2 rounded-full transition-all duration-300'
+                  className='bg-primary h-2 rounded-full transition-[width] duration-300'
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>

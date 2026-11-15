@@ -20,7 +20,8 @@ import { useBackgroundTexture } from '@/hooks/useBackgroundTexture';
 import { useEinkMode } from '@/hooks/useEinkMode';
 import { getLocale } from '@/utils/misc';
 import { getDirFromUILanguage } from '@/utils/rtl';
-import { getAndroidPatchedViewportContent } from '@/utils/viewport';
+import { getAndroidPatchedViewportContent, getTauriLockedViewportContent } from '@/utils/viewport';
+import { isTauriAppPlatform } from '@/services/environment';
 import {
   getTelemetryDecision,
   optInTelemetry,
@@ -246,6 +247,11 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
     if (!meta) return;
     const updated = getAndroidPatchedViewportContent(navigator.userAgent, meta.content);
     if (updated) meta.content = updated;
+    // The SSR viewport leaves pinch-zoom enabled for the web; only the
+    // Tauri shell re-locks it, so page zoom cannot fight the reader's
+    // own zoom gestures there.
+    const locked = getTauriLockedViewportContent(isTauriAppPlatform(), meta.content);
+    if (locked) meta.content = locked;
   }, []);
 
   // Make sure appService is available in all children components

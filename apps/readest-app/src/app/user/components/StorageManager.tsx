@@ -307,7 +307,7 @@ const StorageManager = () => {
           </div>
           <div className='bg-base-300 mt-4 h-2 w-full overflow-hidden rounded-full'>
             <div
-              className='bg-primary h-full transition-all'
+              className='bg-primary h-full transition-[width]'
               style={{ width: `${Math.min(stats.usagePercentage, 100)}%` }}
             />
           </div>

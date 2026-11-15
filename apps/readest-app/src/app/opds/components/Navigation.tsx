@@ -147,7 +147,7 @@ export function Navigation({
         </button>
       </div>
 
-      <div className='grow px-3 sm:px-5'>
+      <div className='grow px-2 sm:px-5'>
         <div className='exclude-title-bar-mousedown relative flex w-full items-center'>
           <span className='text-base-content/50 absolute left-3'>
             <FaSearch className='h-4 w-4' />
@@ -156,7 +156,7 @@ export function Navigation({
             type='text'
             ref={inputRef}
             value={searchQuery}
-            placeholder={_('Search in OPDS Catalog...')}
+            placeholder={_('Search catalog...')}
             disabled={!hasSearch}
             onChange={handleSearchChange}
             spellCheck='false'
@@ -216,7 +216,7 @@ export function Navigation({
                   {feed?.facets?.map((facet, i) => (
                     <div key={i} className='mb-2 last:mb-0'>
                       {facet.metadata?.title && (
-                        <div className='px-4 py-2 text-xs font-semibold opacity-50 uppercase tracking-wider'>
+                        <div className='px-4 py-2 text-xs font-semibold opacity-50'>
                           {facet.metadata.title}
                         </div>
                       )}

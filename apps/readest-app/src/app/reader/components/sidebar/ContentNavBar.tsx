@@ -76,7 +76,7 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
             onClick={onPrevious}
             disabled={!hasPrevious}
             className={clsx(
-              'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all disabled:opacity-40',
+              'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-[background-color,opacity] disabled:opacity-40',
               'bg-base-200 hover:bg-base-300 hover:disabled:bg-base-200',
             )}
           >
@@ -90,7 +90,7 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
           <div className='bg-base-100 relative flex flex-1 items-center justify-between overflow-hidden rounded-xl px-2 py-1 shadow-lg sm:gap-6'>
             {progress !== undefined && progress < 1 && (
               <div
-                className='bg-base-200 absolute inset-y-0 left-0 transition-all duration-300'
+                className='bg-base-200 absolute inset-y-0 left-0 transition-[width] duration-300'
                 style={{ width: `${progress * 100}%` }}
               />
             )}
@@ -129,7 +129,7 @@ const ContentNavBar: React.FC<ContentNavBarProps> = ({
             onClick={onNext}
             disabled={!hasNext}
             className={clsx(
-              'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-all',
+              'flex h-10 w-10 items-center justify-center rounded-full shadow-lg transition-[background-color,opacity]',
               'bg-base-200 hover:bg-base-300 hover:disabled:bg-base-200',
             )}
           >

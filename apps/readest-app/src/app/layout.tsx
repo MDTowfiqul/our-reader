@@ -11,7 +11,7 @@ const url = 'https://our-reader.vercel.app/';
 const title = 'Our Reader — Where You Read, Digest and Get Insight';
 const description =
   'Discover Our Reader, the ultimate online ebook reader for immersive and organized reading. ' +
-  'Enjoy seamless access to your digital library, powerful tools for highlighting, bookmarking, ' +
+  'Access your digital library with powerful tools for highlighting, bookmarking, ' +
   'and note-taking, and support for multiple book views. ' +
   'Perfect for deep reading, analysis, and understanding. Explore now!';
 const previewImage = 'https://cdn.readest.com/images/open_graph_preview_read_now.png';
@@ -65,9 +65,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   minimumScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
+  // No maximumScale / userScalable lock: pinch-zoom stays enabled on the
+  // web so low-vision users can zoom the page. The Tauri mobile shell
+  // re-applies the lock client-side — see Providers.tsx — so page
+  // pinch-zoom cannot fight the reader's own zoom gestures there.
   // `interactive-widget=resizes-content` is appended client-side on
   // Android only — see Providers.tsx. Other browsers warn about the
   // unrecognized key on every page load, so we keep it out of SSR.

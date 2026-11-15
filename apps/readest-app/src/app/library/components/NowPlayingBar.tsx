@@ -143,7 +143,7 @@ const NowPlayingBar = ({ isSelectMode }: NowPlayingBarProps) => {
       aria-label={`${_('Reading aloud')}: ${title}`}
       className={clsx(
         'fixed bottom-0 start-1/2 z-40 -translate-x-1/2 rtl:translate-x-1/2',
-        'motion-safe:transition-all motion-safe:duration-200',
+        'motion-safe:transition-[transform,opacity] motion-safe:duration-200',
         entered ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
       )}
       style={{ paddingBottom: `${(safeAreaInsets?.bottom ?? 0) / 4 + 16}px` }}

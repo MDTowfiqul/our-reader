@@ -120,7 +120,7 @@ const ResultGroupMatches = memo(
       {sections.map((section, sectionIndex) => (
         <div key={`${section.index}-${sectionIndex}`}>
           {section.label && (
-            <h3 className='text-base-content/45 truncate px-4 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wider'>
+            <h3 className='text-base-content/45 truncate px-4 pb-1 pt-2.5 text-[11px] font-medium'>
               {section.label}
             </h3>
           )}

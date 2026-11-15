@@ -133,7 +133,7 @@ export const Toast = () => {
         // Keep daisyUI's content-sized width, but retain the desktop cap
         // without allowing it to override the mobile viewport gutters.
         className={clsx(
-          'toast z-[130] max-w-[min(var(--breakpoint-sm),calc(100vw-2rem))] transition-all duration-300',
+          'toast z-[130] max-w-[min(var(--breakpoint-sm),calc(100vw-2rem))] transition-[transform,opacity] duration-300',
           toastClassMap[toastType],
           isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0',
         )}

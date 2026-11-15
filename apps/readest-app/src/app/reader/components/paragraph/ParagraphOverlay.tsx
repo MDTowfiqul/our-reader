@@ -140,7 +140,7 @@ const SectionTransitionIndicator: React.FC<{
     <div
       className={clsx(
         'flex w-full items-center justify-center',
-        'duration-400 transition-all ease-out',
+        'duration-400 transition-[transform,opacity] ease-out',
         isReady ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0',
       )}
     >

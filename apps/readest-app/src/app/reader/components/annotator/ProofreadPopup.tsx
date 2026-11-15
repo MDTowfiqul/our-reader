@@ -215,7 +215,7 @@ const ProofreadPopup: React.FC<ProofreadPopupProps> = ({
                   }
                 }}
                 placeholder={_('Enter text...')}
-                className='bg-base-200 text-base-content placeholder:text-base-content/40 border-base-300 focus:border-primary focus:ring-primary eink-bordered w-full flex-1 rounded-md border p-2 text-sm transition-all focus:outline-hidden focus:ring-1'
+                className='bg-base-200 text-base-content placeholder:text-base-content/40 border-base-300 focus:border-primary focus:ring-primary eink-bordered w-full flex-1 rounded-md border p-2 text-sm transition-[border-color,box-shadow] focus:outline-hidden focus:ring-1'
               />
               <button
                 onClick={handleApply}

@@ -93,7 +93,7 @@ const AutoScrollControl: React.FC<AutoScrollControlProps> = ({
 
   const buttonClass = clsx(
     'flex items-center justify-center rounded-full p-1.5',
-    'transition-all duration-200 ease-out',
+    'transition-[transform,background-color] duration-200 ease-out',
     'not-eink:hover:bg-base-200 active:scale-90',
   );
 

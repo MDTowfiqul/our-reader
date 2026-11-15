@@ -14,11 +14,12 @@ import {
   CustomTheme,
   generateLightPalette,
   generateDarkPalette,
+  resolveReaderPair,
 } from '@/styles/themes';
 import { createFontCSS, CustomFont } from '@/styles/fonts';
 import { isDialogueHighlightActive } from './dialogueHighlight';
 import { isBengaliLang } from './lang';
-import { readStoredAmbientIsDarkMode } from './ambientLight';
+import { isValidThemeMode, readStoredAmbientIsDarkMode } from './ambientLight';
 import { INLINE_FORMATTING_SELECTOR } from './inlineTags';
 import { getOSPlatform } from './misc';
 import {
@@ -1117,6 +1118,19 @@ export const getThemeCode = () => {
   if (typeof window !== 'undefined') {
     themeColor = localStorage.getItem('themeColor') || 'emerald';
     themeMode = localStorage.getItem('themeMode') || 'auto';
+    // Book content and reader overlays read the raw reader pair here, so a
+    // reader still at its factory defaults follows the library — the same
+    // rule the store applies to the reader chrome (see resolveReaderPair).
+    const storedLibraryMode = localStorage.getItem('libraryThemeMode');
+    const resolved = resolveReaderPair(
+      { themeMode: isValidThemeMode(themeMode) ? themeMode : 'auto', themeColor },
+      {
+        themeMode: isValidThemeMode(storedLibraryMode) ? storedLibraryMode : null,
+        themeColor: localStorage.getItem('libraryThemeColor'),
+      },
+    );
+    themeMode = resolved.themeMode;
+    themeColor = resolved.themeColor;
     systemIsDarkMode = localStorage.getItem('systemIsDarkMode') === 'true';
     ambientIsDarkMode = readStoredAmbientIsDarkMode(
       localStorage.getItem('ambientIsDarkMode'),

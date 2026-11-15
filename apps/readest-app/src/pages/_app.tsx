@@ -16,7 +16,7 @@ function MyApp({ Component, pageProps }: AppProps) {
          */}
         <meta
           name='viewport'
-          content='minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, user-scalable=no, viewport-fit=cover'
+          content='minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, viewport-fit=cover'
         />
         <meta name='application-name' content='Our Reader' />
         <meta name='apple-mobile-web-app-capable' content='yes' />

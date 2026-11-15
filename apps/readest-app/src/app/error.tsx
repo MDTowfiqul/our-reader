@@ -42,16 +42,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     <div className='hero bg-base-200 min-h-screen'>
       <div className='hero-content text-center'>
         <div className='w-full max-w-2xl p-1'>
-          <div className='mb-8 mt-6'>
-            <div className='text-error animate-pulse text-8xl'>⚠️</div>
-          </div>
-
-          <h1 className='text-base-content mb-4 text-5xl font-bold'>Oops!</h1>
+          <h1 className='text-base-content mb-4 text-5xl font-bold'>
+            {_('This page ran into a problem')}
+          </h1>
 
           <p className='text-base-content/70 mb-8 text-lg'>
-            {_(
-              "Something went wrong. Don't worry, our team has been notified and we're working on a fix.",
-            )}
+            {_('The error details are below. Try again, or go back to your library.')}
           </p>
 
           <div className='alert alert-error mb-8 overflow-hidden'>

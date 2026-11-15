@@ -49,9 +49,7 @@ export const KeyboardShortcutsHelp = () => {
   const renderSection = useCallback(
     (section: (typeof sections)[number]) => (
       <div key={section.section} className='mb-4'>
-        <h3 className='text-base-content/70 mb-2 text-xs font-semibold uppercase tracking-wide'>
-          {_(section.section)}
-        </h3>
+        <h3 className='text-base-content/70 mb-2 text-xs font-semibold'>{_(section.section)}</h3>
         <div className='divide-base-200 divide-y'>
           {section.items.map((item) => (
             <div key={item.description} className='flex items-center justify-between gap-4 py-1.5'>

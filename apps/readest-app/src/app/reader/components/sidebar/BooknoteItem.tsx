@@ -195,7 +195,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
         className={clsx(
           'border-base-300 content group relative my-2 cursor-pointer rounded-lg p-2',
           isCurrent ? 'bg-base-300/85 hover:bg-base-300' : 'hover:bg-base-300/55 bg-base-100',
-          'transition-all duration-300 ease-in-out',
+          'transition-colors duration-300 ease-in-out',
         )}
       >
         {/* Same anatomy as AnnotationNoteEditor — the field, then a
@@ -242,7 +242,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
         isCurrent
           ? 'bg-base-300/85 hover:bg-base-300 focus:bg-base-300'
           : 'hover:bg-base-300/55 focus:bg-base-300/55 bg-base-100',
-        'transition-all duration-300 ease-in-out',
+        'transition-colors duration-300 ease-in-out',
       )}
       ref={itemRef}
       tabIndex={0}
@@ -274,7 +274,7 @@ const BooknoteItem: React.FC<BooknoteItemProps> = ({
           <kind.Icon size={kindIconSize} aria-hidden='true' />
         </span>
         <div
-          className={clsx('min-h-4 min-w-0 flex-1 p-0 transition-all duration-300 ease-in-out')}
+          className={clsx('min-h-4 min-w-0 flex-1 p-0 transition-[width] duration-300 ease-in-out')}
           style={
             {
               '--top-override': '0.7rem',

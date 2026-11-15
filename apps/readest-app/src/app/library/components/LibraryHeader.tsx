@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import React, { useRef } from 'react';
 import { FaChevronDown, FaSearch } from 'react-icons/fa';
 import { MdManageSearch } from 'react-icons/md';
-import { PiPlus } from 'react-icons/pi';
+import { PiBookOpen, PiPlus } from 'react-icons/pi';
 import { PiSelectionAll, PiSelectionAllFill } from 'react-icons/pi';
 import { PiDotsThreeCircle } from 'react-icons/pi';
 import { MdOutlineMenu } from 'react-icons/md';
@@ -111,7 +111,7 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           : {}),
       }}
     >
-      <div className='flex w-full items-center justify-between space-x-6 sm:space-x-12'>
+      <div className='flex w-full items-center justify-between space-x-3 sm:space-x-12'>
         <div className='exclude-title-bar-mousedown relative flex w-full items-center ps-4'>
           <div className='relative flex h-9 w-full items-center sm:h-7'>
             {/* The icon doubles as the mode indicator and toggle: magnifier
@@ -278,8 +278,12 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
               rel='noreferrer'
               className='btn btn-ghost text-base-content/85 h-8 min-h-8 px-2'
               title={_('Back to Boighar')}
+              aria-label={_('Back to Boighar')}
             >
-              <span className='font-sans text-base font-normal whitespace-nowrap sm:text-sm'>
+              {/* Icon-only below sm: the full label crowds the search box
+                  out of the header at phone widths. */}
+              <PiBookOpen role='none' className='h-5 w-5 sm:hidden' />
+              <span className='hidden font-sans text-base font-normal whitespace-nowrap sm:inline sm:text-sm'>
                 {_('Back to Boighar')}
               </span>
             </a>

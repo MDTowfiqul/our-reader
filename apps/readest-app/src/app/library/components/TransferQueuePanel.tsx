@@ -129,7 +129,7 @@ const TransferItemRow: React.FC<{
         {transfer.status === 'in_progress' && (
           <div className='bg-base-300 mt-1 h-1.5 w-full overflow-hidden rounded-full'>
             <div
-              className='bg-primary h-full transition-all'
+              className='bg-primary h-full transition-[width]'
               style={{ width: `${transfer.progress}%` }}
             />
           </div>

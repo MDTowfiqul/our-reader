@@ -556,9 +556,7 @@ export const DictionaryResultsBody: React.FC<DictionaryResultsBodyProps> = ({
 
   const definitionsSection = visibleDefinitionProviders.length > 0 && (
     <section className={sectionClassName}>
-      <h3 className='not-eink:opacity-60 mb-2 text-xs font-medium uppercase tracking-wide'>
-        {_('Dictionaries')}
-      </h3>
+      <h3 className='not-eink:opacity-60 mb-2 text-xs font-medium'>{_('Dictionaries')}</h3>
       <ul className='flex flex-col gap-3'>
         {visibleDefinitionProviders.map((p) => {
           const card = cards[p.id];
@@ -630,9 +628,7 @@ export const DictionaryResultsBody: React.FC<DictionaryResultsBodyProps> = ({
 
   const webSearchSection = webSearchProviders.length > 0 && (
     <section className={sectionClassName}>
-      <h3 className='not-eink:opacity-60 mb-2 text-xs font-medium uppercase tracking-wide'>
-        {_('Search the web')}
-      </h3>
+      <h3 className='not-eink:opacity-60 mb-2 text-xs font-medium'>{_('Search the web')}</h3>
       <ul className='flex flex-col'>
         {webSearchProviders.map((p) => {
           const url = resolveWebSearchUrl(p.id);
