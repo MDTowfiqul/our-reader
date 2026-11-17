@@ -15,3 +15,18 @@ export const getAndroidPatchedViewportContent = (
   if (!trimmed) return 'interactive-widget=resizes-content';
   return `${trimmed}, interactive-widget=resizes-content`;
 };
+
+// The web build serves a scalable viewport so users can pinch-zoom the
+// page. The Tauri mobile shell keeps the historic no-zoom viewport so
+// page pinch-zoom cannot fight the reader's own zoom gestures —
+// re-applied client-side, only under Tauri, never on the web.
+export const getTauriLockedViewportContent = (
+  isTauri: boolean,
+  currentContent: string,
+): string | null => {
+  if (!isTauri) return null;
+  if (currentContent.includes('user-scalable=no')) return null;
+  const trimmed = currentContent.trim().replace(/,\s*$/, '');
+  if (!trimmed) return 'maximum-scale=1, user-scalable=no';
+  return `${trimmed}, maximum-scale=1, user-scalable=no`;
+};

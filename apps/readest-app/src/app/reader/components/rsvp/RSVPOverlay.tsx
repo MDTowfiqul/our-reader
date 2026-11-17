@@ -975,7 +975,7 @@ const RSVPOverlay: React.FC<RSVPOverlayProps> = ({
       {/* Context panel (always visible, collapsible) */}
       <div className='mx-3 overflow-hidden rounded-lg border border-gray-500/20 bg-gray-500/10 md:mx-4 md:rounded-xl'>
         <button
-          className='flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide opacity-60 transition-opacity hover:opacity-80 md:px-4 md:py-3'
+          className='flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold opacity-60 transition-opacity hover:opacity-80 md:px-4 md:py-3'
           onClick={toggleContext}
           aria-expanded={!contextCollapsed}
           aria-label={contextCollapsed ? _('Show context') : _('Hide context')}
@@ -1048,7 +1048,7 @@ const RSVPOverlay: React.FC<RSVPOverlayProps> = ({
               {countdown !== null && (
                 <div className='mb-2 flex items-center justify-center'>
                   <span
-                    className='animate-pulse text-5xl font-bold sm:text-6xl md:text-7xl'
+                    className='text-5xl font-bold sm:text-6xl md:text-7xl'
                     style={{ color: accentColor }}
                   >
                     {countdown}
@@ -1124,9 +1124,7 @@ const RSVPOverlay: React.FC<RSVPOverlayProps> = ({
         {/* Progress section */}
         <div className='mb-3 flex flex-col gap-1.5 md:mb-4 md:gap-2'>
           <div className='flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between'>
-            <span className='font-semibold uppercase tracking-wide opacity-70'>
-              {_('Chapter Progress')}
-            </span>
+            <span className='font-semibold opacity-70'>{_('Chapter Progress')}</span>
             <span className='tabular-nums opacity-60'>
               {(state.currentIndex + 1).toLocaleString()} / {state.words.length.toLocaleString()}{' '}
               {_('words')}
@@ -1399,9 +1397,7 @@ const RSVPOverlay: React.FC<RSVPOverlayProps> = ({
                   onClick={() => updateOrpColor(idx)}
                   className={clsx(
                     'h-6 min-h-6 w-6 min-w-6 rounded-full border-2 transition-transform',
-                    orpColorIndex === idx
-                      ? 'scale-110 border-current'
-                      : 'border-transparent hover:scale-105',
+                    orpColorIndex === idx ? 'scale-110 border-current' : 'border-transparent',
                   )}
                   style={{ backgroundColor: color || accentColor }}
                   aria-label={idx === 0 ? _('Theme color') : `Color ${idx}`}

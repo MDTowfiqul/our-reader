@@ -235,7 +235,7 @@ export const CacheManagerWindow = () => {
             <div className='space-y-2'>
               <div className='bg-base-200 h-1.5 w-full overflow-hidden rounded-full'>
                 <div
-                  className='bg-base-content h-full rounded-full transition-all duration-300'
+                  className='bg-base-content h-full rounded-full transition-[width] duration-300'
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>

@@ -280,7 +280,7 @@ const SuccessPageWithSearchParams = () => {
     return (
       <div className='flex min-h-screen items-center justify-center bg-gray-50'>
         <div className='max-w-md text-center'>
-          <div className='mx-auto mb-4 flex h-12 w-12 animate-pulse items-center justify-center rounded-full bg-yellow-400'>
+          <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-400'>
             <svg
               className='h-6 w-6 text-white'
               fill='none'

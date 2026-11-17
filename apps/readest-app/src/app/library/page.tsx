@@ -2086,7 +2086,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         )}
       {currentGroupPath && (
         <div
-          className={`transition-all duration-300 ease-in-out ${
+          className={`transition-[max-height,opacity] duration-300 ease-in-out ${
             currentGroupPath ? 'opacity-100' : 'max-h-0 opacity-0'
           }`}
         >

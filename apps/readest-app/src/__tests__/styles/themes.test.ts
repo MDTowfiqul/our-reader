@@ -5,6 +5,7 @@ import {
   generateDarkPalette,
   themeVariables,
   applyCustomTheme,
+  resolveReaderPair,
   type BaseColor,
   type CustomTheme,
   type Palette,
@@ -257,5 +258,51 @@ describe('applyCustomTheme', () => {
     const styles = document.querySelectorAll('#theme-custom-1-styles');
     expect(styles).toHaveLength(1);
     expect(styles[0]!.textContent).toContain('--color-base-100: #f0f0f0');
+  });
+});
+
+describe('resolveReaderPair', () => {
+  // A reader whose pair is still at the factory defaults (auto/emerald)
+  // has no theme of its own: it follows the library until the user picks
+  // a reader theme in Settings → Theme.
+  const factoryReader = { themeMode: 'auto' as const, themeColor: 'emerald' };
+  const noLibraryOverride = { themeMode: null, themeColor: null };
+
+  it('follows the library when the reader is at factory defaults', () => {
+    expect(resolveReaderPair(factoryReader, { themeMode: 'dark', themeColor: 'midnight' })).toEqual(
+      { themeMode: 'dark', themeColor: 'midnight' },
+    );
+  });
+
+  it('inherits per field, so a mode-only library override keeps the reader color', () => {
+    expect(resolveReaderPair(factoryReader, { themeMode: 'dark', themeColor: null })).toEqual({
+      themeMode: 'dark',
+      themeColor: 'emerald',
+    });
+  });
+
+  it('keeps the factory pair when the library has no override', () => {
+    expect(resolveReaderPair(factoryReader, noLibraryOverride)).toEqual({
+      themeMode: 'auto',
+      themeColor: 'emerald',
+    });
+  });
+
+  it('keeps the reader pair once the user picked a reader mode', () => {
+    expect(
+      resolveReaderPair(
+        { themeMode: 'light', themeColor: 'emerald' },
+        { themeMode: 'dark', themeColor: 'midnight' },
+      ),
+    ).toEqual({ themeMode: 'light', themeColor: 'emerald' });
+  });
+
+  it('keeps the reader pair once the user picked a reader color', () => {
+    expect(
+      resolveReaderPair(
+        { themeMode: 'auto', themeColor: 'midnight' },
+        { themeMode: 'dark', themeColor: 'emerald' },
+      ),
+    ).toEqual({ themeMode: 'auto', themeColor: 'midnight' });
   });
 });

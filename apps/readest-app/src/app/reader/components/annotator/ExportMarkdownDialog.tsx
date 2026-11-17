@@ -97,13 +97,13 @@ const ExportMarkdownDialog: React.FC<ExportMarkdownDialogProps> = ({
 {% if annotation.color == 'yellow' %}
 - {{ annotation.text }}
 {% elif annotation.color == 'red' %}
-- ❗ {{ annotation.text }}
+- [red] {{ annotation.text }}
 {% elif annotation.color == 'green' %}
-- ✅ {{ annotation.text }}
+- [green] {{ annotation.text }}
 {% elif annotation.color == 'blue' %}
-- 💡 {{ annotation.text }}
+- [blue] {{ annotation.text }}
 {% elif annotation.color == 'violet' %}
-- ✨ {{ annotation.text }}
+- [violet] {{ annotation.text }}
 {% else %}
 - {{ annotation.text }}
 {% endif %}

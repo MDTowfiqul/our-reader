@@ -620,6 +620,44 @@ describe('opdsUtils', () => {
       const doc = parseOPDSXML('<feed xmlns="http://www.w3.org/2005/Atom"><title>x</title>');
       expect(parserError(doc)).toBe(true);
     });
+
+    it('recovers a feed whose entry content holds malformed markup (Gutenberg)', () => {
+      // Project Gutenberg single-book feeds embed the book description as
+      // xhtml inside <content>; a spam link in the description carries a
+      // doubled quote in its href, which makes the whole document not
+      // well-formed XML. The feed must still load: the description is
+      // dropped, the entries and their acquisition links survive.
+      const doc = parseOPDSXML(
+        `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Frankenstein; or, The modern Prometheus</title>
+  <entry>
+    <title>Frankenstein; or, The modern Prometheus</title>
+    <content type="xhtml"><div xmlns="http://www.w3.org/1999/xhtml"><p>Summary: &lt;a href="https:<a href="//example.org/spam"">//example.org/spam"</a> target="_blank"&gt;</p></div></content>
+    <link rel="http://opds-spec.org/acquisition" type="application/epub+zip" href="https://www.gutenberg.org/ebooks/84.epub.noimages" />
+  </entry>
+</feed>`,
+      );
+      expect(parserError(doc)).toBe(false);
+      expect(doc.documentElement.localName).toBe('feed');
+      expect(doc.querySelector('entry title')?.textContent).toBe(
+        'Frankenstein; or, The modern Prometheus',
+      );
+      expect(
+        doc
+          .querySelector('entry link[rel="http://opds-spec.org/acquisition"]')
+          ?.getAttribute('href'),
+      ).toBe('https://www.gutenberg.org/ebooks/84.epub.noimages');
+    });
+
+    it('still returns the error document when the malformation is not in content', () => {
+      // A doubled quote in a structural element (an acquisition link) is
+      // not recoverable by dropping descriptions.
+      const doc = parseOPDSXML(
+        '<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>x</title><link rel="http://opds-spec.org/acquisition" type="application/epub+zip" href="https://example.com/b.epub""/></entry></feed>',
+      );
+      expect(parserError(doc)).toBe(true);
+    });
   });
 
   describe('validateOPDSURL', () => {

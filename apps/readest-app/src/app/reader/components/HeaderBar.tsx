@@ -261,7 +261,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           }
         }}
       >
-        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-4 pe-2 max-[350px]:gap-x-2'>
+        <div className='header-tools-start bg-base-100 sidebar-bookmark-toggler z-20 flex h-full min-w-0 items-center gap-x-2 pe-2 sm:gap-x-4'>
           {/* h-full so this scroller spans the whole bar: `overflow-x-auto`
               also clips vertically, and shrink-wrapped to the 32px icons it
               cut the buttons' touch halos back down to 32px (#5401). */}
@@ -271,7 +271,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               `scrollbar-width: none` alone does not remove that strip.
               px-1.5 reserves the 6px each 44px halo extends past its 32px
               button, so the halos do not create a draggable scroll range. */}
-          <div className='no-scrollbar flex h-full min-w-0 items-center gap-x-4 overflow-x-auto px-1.5 max-[350px]:gap-x-2'>
+          <div className='no-scrollbar flex h-full min-w-0 items-center gap-x-2 overflow-x-auto px-1.5 sm:gap-x-4'>
             {/* Tablet portrait runs the mobile footer bar, whose TOC tab opens
                 this same sidebar — showing the toggle here too gave one action
                 two buttons (#5634). Phones are already covered by `sm:`. */}
@@ -349,7 +349,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
           </div>
         </div>
 
-        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-4 ps-2 max-[350px]:gap-x-2'>
+        <div className='header-tools-end bg-base-100 z-20 ms-auto flex h-full min-w-max items-center gap-x-2 ps-2 sm:gap-x-4'>
           <NotebookToggler bookKey={bookKey} />
           <AIToggler bookKey={bookKey} />
           <SummaryToggler bookKey={bookKey} />

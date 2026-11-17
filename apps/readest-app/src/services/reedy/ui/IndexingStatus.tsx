@@ -63,7 +63,7 @@ export function IndexingStatus({
         </div>
         <div className='bg-base-200 h-1.5 w-32 overflow-hidden rounded-full'>
           <div
-            className='bg-primary h-full transition-all duration-300'
+            className='bg-primary h-full transition-[width] duration-300'
             style={{ width: `${pct}%` }}
           />
         </div>

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { getAndroidPatchedViewportContent } from '@/utils/viewport';
+import { getAndroidPatchedViewportContent, getTauriLockedViewportContent } from '@/utils/viewport';
 
 const ANDROID_UA =
   'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
@@ -34,5 +34,30 @@ describe('getAndroidPatchedViewportContent', () => {
     expect(getAndroidPatchedViewportContent(ANDROID_UA, '')).toBe(
       'interactive-widget=resizes-content',
     );
+  });
+});
+
+describe('getTauriLockedViewportContent', () => {
+  // The web build serves a scalable viewport; only the Tauri shell
+  // re-locks it client-side so page pinch-zoom cannot fight the
+  // reader's own zoom gestures there.
+  const SCALABLE_VIEWPORT = 'width=device-width, initial-scale=1, viewport-fit=cover';
+
+  test('returns null on the web so pinch-zoom stays enabled', () => {
+    expect(getTauriLockedViewportContent(false, SCALABLE_VIEWPORT)).toBeNull();
+  });
+
+  test('appends the lock under Tauri', () => {
+    expect(getTauriLockedViewportContent(true, SCALABLE_VIEWPORT)).toBe(
+      `${SCALABLE_VIEWPORT}, maximum-scale=1, user-scalable=no`,
+    );
+  });
+
+  test('returns null when the lock is already present', () => {
+    expect(getTauriLockedViewportContent(true, BASE_VIEWPORT)).toBeNull();
+  });
+
+  test('handles empty current content without leading comma', () => {
+    expect(getTauriLockedViewportContent(true, '')).toBe('maximum-scale=1, user-scalable=no');
   });
 });

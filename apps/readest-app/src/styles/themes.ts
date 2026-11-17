@@ -16,6 +16,33 @@ export type ThemeMode = 'auto' | 'light' | 'dark' | 'ambient';
  */
 export type ThemeScope = 'library' | 'reader';
 
+/**
+ * The reader follows the library until the user picks a reader theme of
+ * their own. The reader pair is always stored (factory defaults auto /
+ * emerald), so "not chosen" is exactly that pair: a reader still on
+ * auto + emerald inherits the library overrides per field, while any
+ * explicit reader pick — a different mode, a different color, or both —
+ * keeps the reader's own pair. A reader set to the defaults by hand in
+ * Settings → Theme is indistinguishable from never having picked one,
+ * and follows the library too.
+ */
+export const resolveReaderPair = (
+  reader: { themeMode: ThemeMode; themeColor: string },
+  library: { themeMode: ThemeMode | null; themeColor: string | null },
+): { themeMode: ThemeMode; themeColor: string } => {
+  if (
+    reader.themeMode === 'auto' &&
+    reader.themeColor === 'emerald' &&
+    (library.themeMode !== null || library.themeColor !== null)
+  ) {
+    return {
+      themeMode: library.themeMode ?? reader.themeMode,
+      themeColor: library.themeColor ?? reader.themeColor,
+    };
+  }
+  return { themeMode: reader.themeMode, themeColor: reader.themeColor };
+};
+
 export type Palette = {
   'base-100': string;
   'base-200': string;

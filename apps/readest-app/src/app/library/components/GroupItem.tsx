@@ -176,7 +176,7 @@ const GroupItem: React.FC<GroupItemProps> = ({
                 onPointerMove={(e) => stopEvent(e)}
                 onPointerCancel={(e) => stopEvent(e)}
                 onPointerLeave={(e) => stopEvent(e)}
-                className='absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-110'
+                className='absolute left-2 top-1/2 -translate-y-1/2'
               >
                 <div className='bg-base-100 border-base-content/10 hover:border-base-content/30 rounded-full border p-1 shadow-xs transition-colors duration-200'>
                   <MdChevronLeft
@@ -198,7 +198,7 @@ const GroupItem: React.FC<GroupItemProps> = ({
                 onPointerMove={(e) => stopEvent(e)}
                 onPointerCancel={(e) => stopEvent(e)}
                 onPointerLeave={(e) => stopEvent(e)}
-                className='absolute right-2 top-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-110'
+                className='absolute right-2 top-1/2 -translate-y-1/2'
               >
                 <div className='bg-base-100 border-base-content/10 hover:border-base-content/30 rounded-full border p-1 shadow-xs transition-colors duration-200'>
                   <MdChevronRight

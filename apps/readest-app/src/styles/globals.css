@@ -371,7 +371,6 @@
 
   .window-button {
     @apply inline-flex h-6 w-6 items-center justify-center rounded-full;
-    @apply transform transition duration-200 ease-in-out hover:scale-105;
   }
 
   .rounded-window {
@@ -695,7 +694,7 @@
     outline: 2px dashed #4a90e2 !important;
     outline-offset: -2px;
     background-color: rgba(74, 144, 226, 0.1) !important;
-    transition: all 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out;
   }
 
   .drag-overlay {

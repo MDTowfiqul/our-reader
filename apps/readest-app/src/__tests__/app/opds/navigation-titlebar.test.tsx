@@ -77,7 +77,7 @@ describe('OPDS Navigation title bar dragging (issue #5584)', () => {
   it('does not drag the window when the search field is pressed', async () => {
     renderNavigation();
 
-    await mouseDown(screen.getByPlaceholderText('Search in OPDS Catalog...'));
+    await mouseDown(screen.getByPlaceholderText('Search catalog...'));
 
     expect(startDragging).not.toHaveBeenCalled();
   });

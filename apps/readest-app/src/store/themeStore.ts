@@ -15,7 +15,7 @@ import {
   resolveThemeIsDarkMode,
 } from '@/utils/ambientLight';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { CustomTheme, Palette, ThemeMode, ThemeScope } from '@/styles/themes';
+import { CustomTheme, Palette, resolveReaderPair, ThemeMode, ThemeScope } from '@/styles/themes';
 import { EnvConfigType, isWebAppPlatform } from '@/services/environment';
 import { SystemSettings } from '@/types/settings';
 import { Insets } from '@/types/misc';
@@ -155,7 +155,10 @@ const applyDataTheme = (themeColor: string, isDarkMode: boolean) => {
 /**
  * Resolve one scope's pair from the raw stored values. The reader pair is the
  * base; the library falls back to it per field, so a user who only overrides
- * the mode keeps following the reader's color.
+ * the mode keeps following the reader's color. The reader falls back the
+ * other way only while it is still at its factory defaults — see
+ * `resolveReaderPair` — so a reader the user never themed follows the
+ * library instead of staying light.
  */
 const resolveScopedTheme = (
   scope: ThemeScope,
@@ -165,7 +168,10 @@ const resolveScopedTheme = (
   >,
 ): { themeMode: ThemeMode; themeColor: string } => {
   if (scope === 'reader') {
-    return { themeMode: raw.readerThemeMode, themeColor: raw.readerThemeColor };
+    return resolveReaderPair(
+      { themeMode: raw.readerThemeMode, themeColor: raw.readerThemeColor },
+      { themeMode: raw.libraryThemeMode, themeColor: raw.libraryThemeColor },
+    );
   }
   return {
     themeMode: raw.libraryThemeMode ?? raw.readerThemeMode,
@@ -283,12 +289,22 @@ export const useThemeStore = create<ThemeState>((set, get) => {
       next.ambientIsDarkMode,
     );
     applyDataTheme(effective.themeColor, nextIsDarkMode);
+    // The book iframe follows the effective theme, so a library edit that
+    // moves a following reader (or a system/ambient flip) has to refresh
+    // themeCode too — not only edits to the reader pair itself. When the
+    // effective theme did not move, the identity stays put and no reader
+    // style effect re-runs (the #4743 rule for a decoupled library edit).
+    const current = get();
+    const effectiveChanged =
+      effective.themeMode !== current.themeMode ||
+      effective.themeColor !== current.themeColor ||
+      nextIsDarkMode !== current.isDarkMode;
     set({
       ...patch,
       themeMode: effective.themeMode,
       themeColor: effective.themeColor,
       isDarkMode: nextIsDarkMode,
-      ...(refreshThemeCode ? { themeCode: getThemeCode() } : {}),
+      ...(refreshThemeCode || effectiveChanged ? { themeCode: getThemeCode() } : {}),
     });
     return effective.themeMode;
   };

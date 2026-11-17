@@ -220,7 +220,7 @@ export function getPlanDetails(
           {
             label: _('Cross-Platform Sync'),
             description: _(
-              'Seamlessly sync your library, progress, highlights, and notes across all your devices—never lose your place again.',
+              'Sync your library, progress, highlights, and notes across all your devices—never lose your place again.',
             ),
           },
           {

@@ -130,6 +130,25 @@ export const parseOPDSXML = (text: string): Document => {
       if (!hasXMLParseError(retry)) return retry;
     }
   }
+
+  // A feed whose only malformation sits inside an entry's <content> (the
+  // book description, usually xhtml) is still a usable feed: the entries
+  // and their acquisition links are intact. Project Gutenberg single-book
+  // feeds carry a spam link with a doubled quote in its href inside the
+  // description, which makes the whole document not well-formed XML — the
+  // loader then falls through to "Document has no link to OPDS feeds" and
+  // the book can never be opened. Dropping the descriptions recovers the
+  // feed; the detail view simply shows no description for such books.
+  // Only <content> is stripped: a malformation anywhere else still returns
+  // the error document.
+  const withoutContent = text.replace(/<content\b[^>]*>[\s\S]*?<\/content\s*>/g, '');
+  if (withoutContent !== text) {
+    const stripped = new DOMParser().parseFromString(
+      withoutContent,
+      getSafeDOMParserMimeType(MIME.XML),
+    );
+    if (!hasXMLParseError(stripped)) return stripped;
+  }
   return doc;
 };
 
