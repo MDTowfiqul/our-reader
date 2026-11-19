@@ -28,6 +28,7 @@ import { ReadestVoiceProvider } from './providers/readest';
 import { OpenAICompatibleSpeechProvider } from './providers/openaiCompatible';
 import type { CustomTTSService } from '@/types/customTTS';
 import { getAccessToken, isCustomTTSAllowed } from '@/utils/access';
+import { isTauriAppPlatform } from '@/services/environment';
 import { SectionTimeline, TimelineSentence } from './SectionTimeline';
 import { estimateSentenceSeconds, hydrateProvisionalDurations } from './ttsDuration';
 import { DownloadableSentence, SectionEnumerator, TTSDownloader } from './TTSDownloader';
@@ -552,7 +553,15 @@ export class TTSController extends EventTarget {
     if (customOk) {
       availableClients.push(this.ttsCustomClient);
     }
-    this.ttsClient = availableClients[0] || this.ttsWebClient;
+    // On web, prefer a client with a real media clock (real audio, which
+    // keeps playing in the background) over the direct-speak web client.
+    // On Tauri the native-first order stays untouched. A remembered
+    // preference still wins, below.
+    this.ttsClient =
+      (!isTauriAppPlatform() &&
+        availableClients.find((client) => client.getCapabilities().mediaClock)) ||
+      availableClients[0] ||
+      this.ttsWebClient;
     const preferredClientName = TTSUtils.getPreferredClient();
     if (preferredClientName) {
       const preferredClient = availableClients.find(
