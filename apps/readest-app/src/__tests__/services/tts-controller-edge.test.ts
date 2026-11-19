@@ -55,7 +55,9 @@ vi.mock('@/services/tts/EdgeTTSClient', () => ({
   EdgeTTSClient: vi.fn().mockImplementation(function (this: Record<string, unknown>) {
     const inst = makeMockClient('edge-tts');
     inst.init = vi.fn().mockImplementation(async function (this: Record<string, unknown>) {
-      this.initialized = edgeInitResult;
+      // Bracket access: `this` is a Record (index signature), so dot access
+      // does not type-check — and the web build type-checks test files too.
+      this['initialized'] = edgeInitResult;
       return edgeInitResult;
     });
     inst.getAllVoices = vi.fn().mockImplementation(async () => (edgeInitResult ? edgeVoices : []));
