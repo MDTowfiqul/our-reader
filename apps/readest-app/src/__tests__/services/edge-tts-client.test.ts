@@ -62,6 +62,7 @@ vi.mock('@/services/tts/TTSUtils', async (importOriginal) => {
 });
 
 import { EdgeTTSClient } from '@/services/tts/EdgeTTSClient';
+import type { TTSCacheStore } from '@/services/tts/providers/cache';
 import { TTSController } from '@/services/tts/TTSController';
 
 // Suppress console noise during tests
@@ -212,6 +213,28 @@ describe('EdgeTTSClient', () => {
 
       const result = await c.init();
       expect(result).toBe(false);
+      expect(dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'tts-need-auth' }),
+      );
+    });
+
+    test('wss failure dispatches tts-need-auth when not authenticated, even with a cache store', async () => {
+      const dispatchEvent = vi.fn();
+      const mockController = {
+        isAuthenticated: false,
+        dispatchEvent,
+      } as unknown as TTSController;
+      // An explicit store makes the provider a CachingProvider, as in
+      // production where the controller shares one per-book cache store.
+      // Cache-only init still succeeds — but the signed-out reader must be
+      // told to sign in instead of playing silence from an empty cache.
+      const c = new EdgeTTSClient(mockController, null, {} as TTSCacheStore);
+
+      createBehavior = () => Promise.reject(new Error('wss failed'));
+
+      const result = await c.init();
+      expect(result).toBe(true);
+      expect(c.initialized).toBe(true);
       expect(dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'tts-need-auth' }),
       );
