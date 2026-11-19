@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { TTSController } from '@/services/tts/TTSController';
 import { TTSClient, TTSMessageEvent } from '@/services/tts/TTSClient';
+import { TTSUtils } from '@/services/tts/TTSUtils';
 import { TTSVoice } from '@/services/tts/types';
 import { FoliateView } from '@/types/view';
 
@@ -141,6 +142,7 @@ describe('TTSController Edge re-enable', () => {
       { id: 'en-US-AriaNeural', name: 'Aria', lang: 'en-US' },
       { id: 'en-GB-SoniaNeural', name: 'Sonia', lang: 'en-GB' },
     ];
+    vi.mocked(TTSUtils.getPreferredClient).mockReturnValue(null);
   });
 
   test('Edge init fails: init still finishes, web client stays, no Edge voices listed', async () => {
@@ -170,5 +172,38 @@ describe('TTSController Edge re-enable', () => {
     await controller.init();
     await controller.setVoice('en-US-AriaNeural', 'en-US');
     expect(controller.ttsClient.name).toBe('edge-tts');
+  });
+});
+
+// Task 4: on web, the default client is the first available one with a real
+// media clock (Edge), not the direct-speak web client; a remembered
+// preference still wins, and device TTS stays the fallback.
+describe('TTSController real-audio web default', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    edgeInitResult = true;
+    vi.mocked(TTSUtils.getPreferredClient).mockReturnValue(null);
+  });
+
+  test('Edge ready, no remembered preference: the real-audio Edge client is the default', async () => {
+    edgeInitResult = true;
+    const controller = new TTSController(null, makeView());
+    await controller.init();
+    expect(controller.ttsClient.name).toBe('edge-tts');
+  });
+
+  test('Edge not ready: the web client stays the default', async () => {
+    edgeInitResult = false;
+    const controller = new TTSController(null, makeView());
+    await controller.init();
+    expect(controller.ttsClient.name).toBe('web-speech');
+  });
+
+  test('a remembered preference for the web client still wins over the real-audio default', async () => {
+    edgeInitResult = true;
+    vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('web-speech');
+    const controller = new TTSController(null, makeView());
+    await controller.init();
+    expect(controller.ttsClient.name).toBe('web-speech');
   });
 });
