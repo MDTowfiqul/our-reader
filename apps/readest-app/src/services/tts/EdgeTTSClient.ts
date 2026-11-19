@@ -65,9 +65,16 @@ export class EdgeTTSClient extends BufferedTTSClient {
     }
     // Every probe failed: blocked, or offline. With a persistent cache a
     // pre-downloaded book still plays (hits play, misses skip via the
-    // provider's permanent error), so init as cache-only rather than fail —
-    // and do NOT nag a signed-out user with a warm cache to sign in.
+    // provider's permanent error), so init as cache-only rather than fail.
+    // A signed-out reader still gets the sign-in prompt: Edge is the web
+    // default, and with a cold cache the reader would otherwise play
+    // silence. A warm cache still plays, so the prompt may appear once even
+    // when audio is cached — the tradeoff for not leaving cold-cache readers
+    // in silence (init cannot tell a warm cache from a cold one).
     if (this.provider instanceof CachingProvider) {
+      if (!this.controller?.isAuthenticated) {
+        this.controller?.dispatchEvent(new CustomEvent('tts-need-auth'));
+      }
       this.initialized = true;
       return true;
     }
