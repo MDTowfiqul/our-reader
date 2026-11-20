@@ -178,6 +178,9 @@ describe('TTSController Edge re-enable', () => {
 // Task 4: on web, the default client is the first available one with a real
 // media clock (Edge), not the direct-speak web client; a remembered
 // preference still wins, and device TTS stays the fallback.
+// Task 8: that real-audio default applies only when signed in — Edge's
+// transports need a session, so a signed-out reader keeps device speech
+// instead of a default that cannot speak (silent skips + sign-in prompt).
 describe('TTSController real-audio web default', () => {
   beforeEach(() => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -185,11 +188,18 @@ describe('TTSController real-audio web default', () => {
     vi.mocked(TTSUtils.getPreferredClient).mockReturnValue(null);
   });
 
-  test('Edge ready, no remembered preference: the real-audio Edge client is the default', async () => {
+  test('signed in, Edge ready, no remembered preference: the real-audio Edge client is the default', async () => {
+    edgeInitResult = true;
+    const controller = new TTSController(null, makeView(), true);
+    await controller.init();
+    expect(controller.ttsClient.name).toBe('edge-tts');
+  });
+
+  test('signed out, Edge ready, no remembered preference: the web client stays the default', async () => {
     edgeInitResult = true;
     const controller = new TTSController(null, makeView());
     await controller.init();
-    expect(controller.ttsClient.name).toBe('edge-tts');
+    expect(controller.ttsClient.name).toBe('web-speech');
   });
 
   test('Edge not ready: the web client stays the default', async () => {
