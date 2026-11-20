@@ -2,5 +2,4 @@
 // the reader is actually on). A fixed production base strands preview
 // deployments: the session lands on production and the preview tab stays
 // signed out (no token, no Edge proxy, Premium badge stuck on).
-export const getWebAuthCallbackUrl = (origin: string): string =>
-  `${origin}/auth/callback`;
+export const getWebAuthCallbackUrl = (origin: string): string => `${origin}/auth/callback`;
