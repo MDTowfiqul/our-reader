@@ -166,18 +166,14 @@ describe('NativeTTSClient preload (background queue)', () => {
 
     // m3 was never preloaded: the fresh live speak flushes the service queue,
     // so m1/m2 are gone with it.
-    const livePromise = drain(
-      client.speakMark(makeMark('m3', 'Third sentence'), false, signal),
-    );
+    const livePromise = drain(client.speakMark(makeMark('m3', 'Third sentence'), false, signal));
     await flush();
     listenerCallback()!({ utteranceId: 'u3', code: 'end' });
     await livePromise;
 
     // A later live speak of m1 must invoke fresh (u4), not attach to the
     // flushed u1.
-    const replayPromise = drain(
-      client.speakMark(makeMark('m1', 'First sentence'), false, signal),
-    );
+    const replayPromise = drain(client.speakMark(makeMark('m1', 'First sentence'), false, signal));
     await flush();
     listenerCallback()!({ utteranceId: 'u4', code: 'end' });
     await replayPromise;
