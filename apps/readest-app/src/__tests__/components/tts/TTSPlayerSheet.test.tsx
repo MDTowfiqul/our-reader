@@ -824,7 +824,7 @@ describe('TTSPlayerSheet', () => {
     });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
-    expect(screen.getByText('Online — needs internet')).toBeTruthy();
+    expect(await waitFor(() => screen.getByText('Online — needs internet'))).toBeTruthy();
     // The first language row (Arabic) opens by default.
     expect(await waitFor(() => screen.getByText('Zariyah'))).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Bengali' }));
@@ -884,7 +884,9 @@ describe('TTSPlayerSheet', () => {
     const row = (name: string) => screen.getByText(name).closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).textContent).toBe('XiaoyuPro');
     expect(row('Zifang').textContent).toBe('ZifangPlus');
-    fireEvent.click(screen.getByRole('button', { name: 'English: 2 voices' }));
+    // A folded row holding the voice in use names it after the count
+    // ("English: 2 voicesAva"), so match the count part, not the whole name.
+    fireEvent.click(screen.getByRole('button', { name: /English: 2 voices/ }));
     expect(row('Guy').textContent).toBe('Guy');
   });
 
@@ -989,7 +991,8 @@ describe('TTSPlayerSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pin Ava' }));
     expect(screen.getByText('Pinned')).toBeTruthy();
     expect(screen.getByText('Ava')).toBeTruthy();
-    expect(screen.getByText('English: 1 voices')).toBeTruthy();
+    // One voice left in English, so its row shows just the language name.
+    expect(screen.getByRole('button', { name: 'English' })).toBeTruthy();
     expect(JSON.parse(localStorage.getItem('ttsPinnedVoices') || '[]')).toEqual(['ava']);
     fireEvent.click(screen.getByRole('button', { name: 'Unpin Ava' }));
     expect(screen.queryByText('Pinned')).toBeNull();

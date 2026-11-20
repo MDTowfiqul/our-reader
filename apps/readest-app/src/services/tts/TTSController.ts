@@ -2410,6 +2410,20 @@ export class TTSController extends EventTarget {
   async getVoices(lang: string) {
     const ttsWebVoices = await this.ttsWebClient.getVoices(lang);
     const ttsNativeVoices = (await this.ttsNativeClient?.getVoices(lang)) ?? [];
+    // Listed for every reader, the voices their plan lacks greyed out; hidden
+    // only when there is no catalog (kill switch, offline). The picker itself
+    // reads getAllVoices, which leaves Readest out, so this group never
+    // reaches the voice picker — it stays here for the controller's own
+    // callers and its tests.
+    const ttsReadestVoices =
+      (await this.ttsReadestClient.getAllVoices()).length > 0
+        ? (await this.ttsReadestClient.getVoices(lang)).filter((group) => group.voices.length > 0)
+        : [];
+    // The picker is open: boot a GPU worker so the first window is warm, but
+    // only for a reader whose plan has a Readest voice to play.
+    if (ttsReadestVoices.some((group) => group.voices.some((voice) => !voice.disabled))) {
+      this.#readestProvider.warmup();
+    }
     // The book's own narrator leads the list when there is one: it is the best
     // voice available for that book by a wide margin.
     const narrationVoices = this.narrationAvailable
@@ -2426,6 +2440,7 @@ export class TTSController extends EventTarget {
     const voicesGroups = [
       ...narrationVoices,
       ...ttsCustomVoices,
+      ...ttsReadestVoices,
       ...ttsEdgeVoices,
       ...ttsNativeVoices,
       ...ttsWebVoices,

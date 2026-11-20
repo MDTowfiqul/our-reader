@@ -21,7 +21,7 @@ const makeAppService = () =>
 describe('shareBookFile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(eventDispatcher, 'dispatch').mockImplementation(() => true);
+    vi.spyOn(eventDispatcher, 'dispatch').mockImplementation(async () => {});
   });
 
   it('shares the managed copy through the OS share sheet', async () => {
