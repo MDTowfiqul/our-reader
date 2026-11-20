@@ -28,6 +28,7 @@ import { ReadestVoiceProvider } from './providers/readest';
 import { OpenAICompatibleSpeechProvider } from './providers/openaiCompatible';
 import type { CustomTTSService } from '@/types/customTTS';
 import { getAccessToken, isCustomTTSAllowed } from '@/utils/access';
+import { isTauriAppPlatform } from '@/services/environment';
 import { SectionTimeline, TimelineSentence } from './SectionTimeline';
 import { estimateSentenceSeconds, hydrateProvisionalDurations } from './ttsDuration';
 import { DownloadableSentence, SectionEnumerator, TTSDownloader } from './TTSDownloader';
@@ -525,21 +526,23 @@ export class TTSController extends EventTarget {
     // Started together: each can take seconds (system TTS waits for its
     // voices), and play waits on them all. Results are still taken in
     // priority order.
-    // Our Reader fork: Edge TTS is removed from the voice picker (it did
-    // not work on the web app), so its client is never probed or listed
-    // here. The EdgeTTSClient files stay on disk, unused.
     const readestReady = withinEngineTimeout(this.ttsReadestClient.init(), false);
     const customReady = withinEngineTimeout(this.ttsCustomClient.init(), false);
     const nativeReady = this.ttsNativeClient
       ? withinEngineTimeout(this.ttsNativeClient.init(), false)
       : undefined;
     const webReady = withinEngineTimeout(this.ttsWebClient.init(), false);
+    const edgeReady = withinEngineTimeout(this.ttsEdgeClient.init(), false);
     if (this.ttsNativeClient && (await nativeReady)) {
       availableClients.push(this.ttsNativeClient);
       this.ttsNativeVoices = await withinEngineTimeout(this.ttsNativeClient.getAllVoices(), []);
     }
     if (await webReady) {
       availableClients.push(this.ttsWebClient);
+    }
+    const edgeOk = await edgeReady;
+    if (edgeOk) {
+      availableClients.push(this.ttsEdgeClient);
     }
     // Last: Readest Voice is never the default, only a remembered choice.
     const readestOk = await readestReady;
@@ -550,7 +553,15 @@ export class TTSController extends EventTarget {
     if (customOk) {
       availableClients.push(this.ttsCustomClient);
     }
-    this.ttsClient = availableClients[0] || this.ttsWebClient;
+    // On web, prefer a client with a real media clock (real audio, which
+    // keeps playing in the background) over the direct-speak web client.
+    // On Tauri the native-first order stays untouched. A remembered
+    // preference still wins, below.
+    this.ttsClient =
+      (!isTauriAppPlatform() &&
+        availableClients.find((client) => client.getCapabilities().mediaClock)) ||
+      availableClients[0] ||
+      this.ttsWebClient;
     const preferredClientName = TTSUtils.getPreferredClient();
     if (preferredClientName) {
       const preferredClient = availableClients.find(
@@ -561,11 +572,13 @@ export class TTSController extends EventTarget {
       }
     }
     // An engine whose init failed or timed out has no voices to list.
-    [this.ttsWebVoices, this.ttsReadestVoices, this.ttsCustomVoices] = await Promise.all([
-      withinEngineTimeout(this.ttsWebClient.getAllVoices(), []),
-      readestOk ? withinEngineTimeout(this.ttsReadestClient.getAllVoices(), []) : [],
-      customOk ? this.ttsCustomClient.getAllVoices() : [],
-    ]);
+    [this.ttsWebVoices, this.ttsReadestVoices, this.ttsCustomVoices, this.ttsEdgeVoices] =
+      await Promise.all([
+        withinEngineTimeout(this.ttsWebClient.getAllVoices(), []),
+        readestOk ? withinEngineTimeout(this.ttsReadestClient.getAllVoices(), []) : [],
+        customOk ? this.ttsCustomClient.getAllVoices() : [],
+        edgeOk ? withinEngineTimeout(this.ttsEdgeClient.getAllVoices(), []) : [],
+      ]);
 
     // A book that ships its own narration should be read by its narrator, not
     // synthesized — that is the whole point of having the recording. The
@@ -2416,11 +2429,15 @@ export class TTSController extends EventTarget {
     const ttsCustomVoices = this.ttsCustomClient.initialized
       ? (await this.ttsCustomClient.getVoices(lang)).filter((group) => group.voices.length > 0)
       : [];
+    const ttsEdgeVoices = this.ttsEdgeClient.initialized
+      ? (await this.ttsEdgeClient.getVoices(lang)).filter((group) => group.voices.length > 0)
+      : [];
 
     const voicesGroups = [
       ...narrationVoices,
       ...ttsCustomVoices,
       ...ttsReadestVoices,
+      ...ttsEdgeVoices,
       ...ttsNativeVoices,
       ...ttsWebVoices,
     ];
@@ -2462,10 +2479,10 @@ export class TTSController extends EventTarget {
       voiceId !== '' &&
       this.ttsReadestClient.initialized &&
       this.ttsReadestVoices.some((voice) => voice.id === voiceId && !voice.disabled);
-    // Our Reader fork: Edge TTS is removed from the picker, so there is no
-    // Edge branch here. A remembered Edge voice id matches nothing above
-    // and falls through to the device client below, which is the safe
-    // fallback — playback never lands on a dead engine.
+    const useEdgeTTS =
+      voiceId !== '' &&
+      this.ttsEdgeClient.initialized &&
+      this.ttsEdgeVoices.some((voice) => voice.id === voiceId && !voice.disabled);
     const useNativeTTS = !!this.ttsNativeVoices.find(
       (voice) => (voiceId === '' || voice.id === voiceId) && !voice.disabled,
     );
@@ -2474,6 +2491,9 @@ export class TTSController extends EventTarget {
       await this.ttsClient.setRate(this.ttsRate);
     } else if (useReadestTTS) {
       this.ttsClient = this.ttsReadestClient;
+      await this.ttsClient.setRate(this.ttsRate);
+    } else if (useEdgeTTS) {
+      this.ttsClient = this.ttsEdgeClient;
       await this.ttsClient.setRate(this.ttsRate);
     } else if (useNativeTTS) {
       if (!this.ttsNativeClient) {

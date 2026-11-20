@@ -293,10 +293,10 @@ describe('TTSController', () => {
   });
 
   describe('init', () => {
-    test('initialises the web client, and never probes Edge', async () => {
+    test('initialises the web client, and probes Edge too', async () => {
       await controller.init();
 
-      expect(controller.ttsEdgeClient.init).not.toHaveBeenCalled();
+      expect(controller.ttsEdgeClient.init).toHaveBeenCalled();
       expect(controller.ttsWebClient.init).toHaveBeenCalled();
     });
 
@@ -312,20 +312,21 @@ describe('TTSController', () => {
       expect(controller.ttsWebClient.init).toHaveBeenCalled();
       webDone(true);
       await ready;
-      expect(controller.ttsClient.name).toBe('web');
+      // Edge is ready too and has a real media clock, so it is the default.
+      expect(controller.ttsClient.name).toBe('edge');
     });
 
-    test('sets ttsClient to first available client (web)', async () => {
+    test('sets ttsClient to the first real-audio client (edge)', async () => {
       await controller.init();
-      // web inits first and succeeds, so it becomes the active client
-      expect(controller.ttsClient.name).toBe('web');
+      // Edge has a real media clock, so it is the web default.
+      expect(controller.ttsClient.name).toBe('edge');
     });
 
-    test('fetches voices from the web client, never from Edge', async () => {
+    test('fetches voices from the web client and from Edge', async () => {
       await controller.init();
 
       expect(controller.ttsWebClient.getAllVoices).toHaveBeenCalled();
-      expect(controller.ttsEdgeClient.getAllVoices).not.toHaveBeenCalled();
+      expect(controller.ttsEdgeClient.getAllVoices).toHaveBeenCalled();
     });
 
     test('respects preferred client from TTSUtils', async () => {
@@ -334,11 +335,11 @@ describe('TTSController', () => {
       expect(controller.ttsClient.name).toBe('web');
     });
 
-    test('falls back to web client when preferred client not found', async () => {
+    test('falls back to the real-audio default when preferred client not found', async () => {
       vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('nonexistent');
       await controller.init();
-      // first available is web
-      expect(controller.ttsClient.name).toBe('web');
+      // first available real-audio client is Edge
+      expect(controller.ttsClient.name).toBe('edge');
     });
 
     test('also initializes native client on Android', async () => {

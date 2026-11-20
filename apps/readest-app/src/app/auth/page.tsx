@@ -20,6 +20,7 @@ import { start, cancel, onUrl, onInvalidUrl } from '@fabianlars/tauri-plugin-oau
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { invoke } from '@tauri-apps/api/core';
 import { handleAuthCallback, parseOAuthCallbackUrl } from '@/helpers/auth';
+import { getWebAuthCallbackUrl } from '@/utils/authRedirect';
 import { getUserProfilePlan } from '@/utils/access';
 import { getHorizontalInsetStyle } from '@/utils/insets';
 import { getAppleIdAuth, Scope } from './utils/appleIdAuth';
@@ -77,9 +78,11 @@ export default function AuthPage() {
   };
 
   const getWebRedirectTo = () => {
-    return process.env.NODE_ENV === 'production'
-      ? WEB_AUTH_CALLBACK
-      : `${window.location.origin}/auth/callback`;
+    // Return to the origin the reader is actually on: a fixed production
+    // callback strands preview deployments (the session lands on production
+    // and the preview tab stays signed out). The /auth/callback route reads
+    // the tokens from the URL hash, so any origin works.
+    return getWebAuthCallbackUrl(window.location.origin);
   };
 
   const tauriSignInApple = async () => {

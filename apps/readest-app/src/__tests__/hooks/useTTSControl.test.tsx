@@ -1582,4 +1582,28 @@ describe('useTTSControl quota toast', () => {
     expect(dispatchSpy).toHaveBeenCalledWith('toast', expect.objectContaining({ type: 'error' }));
     dispatchSpy.mockRestore();
   });
+
+  // The harness reader is signed out (AuthContext mock returns user: null):
+  // when Edge cannot reach any transport, the controller reports
+  // tts-need-auth and the hook must raise the sign-in prompt, not silence.
+  it('shows the sign-in prompt when Edge reports tts-need-auth', async () => {
+    await startSession();
+    const controller = ttsControllerInstances[0] as {
+      addEventListener: ReturnType<typeof vi.fn>;
+    };
+    const call = controller.addEventListener.mock.calls.find(
+      (args: unknown[]) => args[0] === 'tts-need-auth',
+    );
+    expect(call).toBeDefined();
+    const dispatchSpy = vi.spyOn(eventDispatcher, 'dispatch');
+    (call![1] as () => void)();
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast',
+      expect.objectContaining({
+        message: 'Please log in to use advanced TTS features',
+        type: 'error',
+      }),
+    );
+    dispatchSpy.mockRestore();
+  });
 });
