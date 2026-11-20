@@ -1,6 +1,6 @@
 import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 import { isTauriAppPlatform } from '@/services/environment';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { useSettingsStore } from '@/store/settingsStore';
 import {
   needsProxy,
@@ -60,7 +60,7 @@ export const createPseStreamPageLoader = (data: PseStreamData) => {
 
     const fetchURL = useProxy ? getProxiedURL(url, true, customHeaders) : url;
     const headers: Record<string, string> = withOriginSuppressed({
-      'User-Agent': READEST_OPDS_USER_AGENT,
+      'User-Agent': OUR_READER_OPDS_USER_AGENT,
       ...(!useProxy ? customHeaders : {}),
       ...(authHeader ? { Authorization: authHeader } : {}),
     });

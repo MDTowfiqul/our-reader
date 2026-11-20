@@ -140,7 +140,7 @@ fn create_controls<R: Runtime>(app: &AppHandle<R>, listeners: Listeners) -> Opti
         None
     };
     let config = PlatformConfig {
-        display_name: "Readest",
+        display_name: "Our Reader",
         dbus_name: "readest",
         hwnd,
     };

@@ -182,7 +182,7 @@ export const buildBookshelfWidgetCatalog = (
     cancel: _('Cancel'),
     save: _('Save'),
     edit: _('Edit'),
-    openApp: _('Open Readest to show this bookshelf'),
+    openApp: _('Open Our Reader to show this bookshelf'),
   },
 });
 

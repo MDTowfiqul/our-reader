@@ -35,11 +35,11 @@ export interface ClipOptions {
 export function getClipOptions(_: Translate): ClipOptions {
   const { bg, fg } = getThemeCode();
   return {
-    windowTitle: _('Saving to your Readest library…'),
-    overlayTitle: _('Saving to Readest'),
+    windowTitle: _('Saving to your Our Reader library…'),
+    overlayTitle: _('Saving to Our Reader'),
     loadingStatus: _('Loading article…'),
     capturingStatus: _('Capturing article…'),
-    savedTitle: _('Saved to Readest'),
+    savedTitle: _('Saved to Our Reader'),
     background: bg,
     foreground: fg,
     signInHint: _('Sign in if needed, then capture'),

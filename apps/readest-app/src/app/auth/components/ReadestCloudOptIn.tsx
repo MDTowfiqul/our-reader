@@ -74,10 +74,10 @@ export default function ReadestCloudOptIn({ onPendingWrite }: ReadestCloudOptInP
           className='checkbox checkbox-sm mt-0.5 shrink-0'
         />
         <span className='flex flex-col gap-1'>
-          <span className='text-sm'>{_('Sync with Readest Cloud')}</span>
+          <span className='text-sm'>{_('Sync with Our Reader Cloud')}</span>
           <span className='text-base-content/60 text-xs leading-relaxed'>
             {_(
-              'Store your library, reading progress, and highlights in your Readest account. You can change this any time in Settings.',
+              'Store your library, reading progress, and highlights in your Our Reader account. You can change this any time in Settings.',
             )}
           </span>
         </span>
