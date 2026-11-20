@@ -353,7 +353,10 @@ class NativeTTSPlugin(private val activity: Activity) : Plugin(activity) {
     @Command
     fun open_tts_settings(invoke: Invoke) {
         try {
-            val intent = Intent(android.provider.Settings.ACTION_TTS_SETTINGS)
+            // The action string, not Settings.ACTION_TTS_SETTINGS: that
+            // constant is @hide in AOSP and absent from the public SDK,
+            // so the reference does not compile even with compileSdk 36.
+            val intent = Intent("com.android.settings.TTS_SETTINGS")
             activity.startActivity(intent)
             invoke.resolve()
         } catch (e: Exception) {
