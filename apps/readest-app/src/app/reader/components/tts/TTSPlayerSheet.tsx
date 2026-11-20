@@ -111,12 +111,13 @@ type TTSPlayerSheetProps = {
   currentSentenceText?: string;
   // Previous/current/next window around it, when resolvable; null means
   // the preview shows the current sentence alone. The current line always
-  // comes from the window when one is present, so the three lines can
-  // never disagree about which sentence is current.
+  // comes from the window when one is present, so the lines can never
+  // disagree about which sentence is current. Prev/next hold several
+  // sentences each so the reader sees context, not just one line.
   surroundingSentences?: {
-    prev: string | null;
+    prev: string[];
     current: string;
-    next: string | null;
+    next: string[];
   } | null;
   // Playing, but nothing audible yet — the transport button wears a ring.
   buffering: boolean;
@@ -126,6 +127,28 @@ type TTSPlayerSheetProps = {
   onPlayFromLyric: (index: number) => Promise<void>;
   downloads: UseTTSDownloadsResult;
   activeSectionIndex: number | null;
+};
+
+// Merge voice groups fetched for several languages: groups with the same id
+// become one (their voices concatenated, deduped by voice id), so the picker
+// shows one Edge TTS group holding Bengali, English and Arabic voices.
+const mergeVoiceGroups = (groups: TTSVoicesGroup[]): TTSVoicesGroup[] => {
+  const merged = new Map<string, TTSVoicesGroup>();
+  for (const group of groups) {
+    const existing = merged.get(group.id);
+    if (!existing) {
+      merged.set(group.id, { ...group, voices: [...group.voices] });
+      continue;
+    }
+    const seen = new Set(existing.voices.map((voice) => voice.id));
+    for (const voice of group.voices) {
+      if (!seen.has(voice.id)) {
+        seen.add(voice.id);
+        existing.voices.push(voice);
+      }
+    }
+  }
+  return [...merged.values()];
 };
 
 // Lyric line sizes (px) the A−/A+ buttons step through; 14 is the old text-sm.
@@ -316,7 +339,12 @@ const TTSPlayerSheet = ({
     // language changed) must not overwrite its result.
     let current = true;
     const fetchVoices = async () => {
-      const groups = await onGetVoices(ttsLang);
+      // The book's language leads, but English and Arabic voices are listed
+      // too: a reader may prefer them for any book. Groups with the same id
+      // merge (e.g. one Edge TTS group), voices dedup by id.
+      const langs = [...new Set([ttsLang, 'en', 'ar'])];
+      const results = await Promise.all(langs.map((lang) => onGetVoices(lang)));
+      const groups = mergeVoiceGroups(results.flat());
       if (!current) return;
       const voicesCount = groups.reduce((acc, group) => acc + group.voices.length, 0);
       if (!groups || voicesCount === 0) {
@@ -632,19 +660,25 @@ const TTSPlayerSheet = ({
               view is available. */}
           {showSentencePreview && (
             <div className='flex w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2'>
-              {surroundingSentences?.prev && (
-                <p className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'>
-                  {surroundingSentences.prev}
+              {surroundingSentences?.prev.map((line, i) => (
+                <p
+                  key={`prev-${i}`}
+                  className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'
+                >
+                  {line}
                 </p>
-              )}
+              ))}
               <p className='not-eink:bg-base-200 eink-bordered rounded-xl px-6 py-4 text-center font-serif text-xl font-semibold leading-relaxed'>
                 {surroundingSentences?.current ?? currentSentenceText}
               </p>
-              {surroundingSentences?.next && (
-                <p className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'>
-                  {surroundingSentences.next}
+              {surroundingSentences?.next.map((line, i) => (
+                <p
+                  key={`next-${i}`}
+                  className='text-base-content/40 px-6 text-center font-serif text-base leading-relaxed'
+                >
+                  {line}
                 </p>
-              )}
+              ))}
             </div>
           )}
           {showLyrics && (
@@ -969,6 +1003,9 @@ const TTSPlayerSheet = ({
                           )}
                         >
                           {_(voice.name)}
+                        </span>
+                        <span className='text-base-content/50 shrink-0 text-sm sm:text-xs'>
+                          {getLanguageName(voice.lang)}
                         </span>
                         {voice.variant && (
                           <span className='badge badge-sm badge-ghost ms-auto shrink-0'>

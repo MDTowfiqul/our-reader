@@ -263,4 +263,24 @@ describe('NativeTTSClient voice filtering', () => {
     const groups = await client.getVoices('en');
     expect(groups.flatMap((group) => group.voices)).toHaveLength(4);
   });
+
+  test('groups voices by language, one group per language', async () => {
+    const voices = [
+      { id: 'bn-bd-x-ban-local', name: 'bn-bd-x-ban-local', lang: 'bn-BD' },
+      { id: 'bn-in-x-bnc-local', name: 'bn-in-x-bnc-local', lang: 'bn-IN' },
+      { id: 'en-us-x-sfg-local', name: 'en-us-x-sfg-local', lang: 'en-US' },
+    ];
+    vi.mocked(invoke).mockResolvedValue({ voices });
+    const client = new NativeTTSClient();
+    const bnGroups = await client.getVoices('bn');
+    expect(bnGroups).toHaveLength(1);
+    expect(bnGroups[0]!.id).toBe('native-bn');
+    expect(bnGroups[0]!.name).toBe('Bengali');
+    expect(bnGroups[0]!.voices).toHaveLength(2);
+    const enGroups = await client.getVoices('en');
+    expect(enGroups).toHaveLength(1);
+    expect(enGroups[0]!.id).toBe('native-en');
+    expect(enGroups[0]!.name).toBe('English');
+    expect(enGroups[0]!.voices).toHaveLength(1);
+  });
 });

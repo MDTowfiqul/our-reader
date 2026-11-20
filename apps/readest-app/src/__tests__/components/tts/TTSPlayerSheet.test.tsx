@@ -213,7 +213,8 @@ describe('TTSPlayerSheet', () => {
     props.onGetVoiceId.mockReturnValue('ava');
     rerender(<TTSPlayerSheet {...props} clientsReady />);
     expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
-    expect(props.onGetVoices).toHaveBeenCalledTimes(2);
+    // One fetch per language (book language plus English and Arabic).
+    expect(props.onGetVoices).toHaveBeenCalledTimes(4);
     expect((screen.getByLabelText('Previous Paragraph') as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -737,28 +738,30 @@ describe('TTSPlayerSheet', () => {
     expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
   });
 
-  test('now reading preview shows faded previous and next sentences around the current one', () => {
+  test('now reading preview shows several faded lines before and after the current one', () => {
     const props = makeProps({
       currentSentenceText: 'This sentence is being read aloud.',
       surroundingSentences: {
-        prev: 'The sentence before it.',
+        prev: ['Two sentences before.', 'The sentence before it.'],
         current: 'This sentence is being read aloud.',
-        next: 'The sentence after it.',
+        next: ['The sentence after it.', 'Two sentences after.'],
       },
     });
     render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('Two sentences before.')).toBeTruthy();
     expect(screen.getByText('The sentence before it.')).toBeTruthy();
     expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
     expect(screen.getByText('The sentence after it.')).toBeTruthy();
+    expect(screen.getByText('Two sentences after.')).toBeTruthy();
   });
 
   test('now reading preview omits missing neighbours at chapter boundaries', () => {
     const props = makeProps({
       currentSentenceText: 'The very first sentence.',
       surroundingSentences: {
-        prev: null,
+        prev: [],
         current: 'The very first sentence.',
-        next: 'The second sentence.',
+        next: ['The second sentence.'],
       },
     });
     render(<TTSPlayerSheet {...props} />);
@@ -779,6 +782,50 @@ describe('TTSPlayerSheet', () => {
     const props = makeProps({ currentSentenceText: '' });
     render(<TTSPlayerSheet {...props} />);
     expect(screen.queryByText('This sentence is being read aloud.')).toBeNull();
+  });
+
+  test('voice rows show the language name next to the voice name', async () => {
+    const props = makeProps({});
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
+    expect(screen.getAllByText('English')).toHaveLength(2);
+  });
+
+  test('voice picker also lists English and Arabic voices for a Bengali book', async () => {
+    const groupsByLang: Record<string, typeof voiceGroups> = {
+      bn: [
+        {
+          id: 'edge-tts',
+          name: 'Edge TTS',
+          voices: [{ id: 'nabanita', name: 'Nabanita', lang: 'bn-BD', disabled: false }],
+        },
+      ],
+      en: [
+        {
+          id: 'edge-tts',
+          name: 'Edge TTS',
+          voices: [{ id: 'aria', name: 'Aria', lang: 'en-US', disabled: false }],
+        },
+      ],
+      ar: [
+        {
+          id: 'edge-tts',
+          name: 'Edge TTS',
+          voices: [{ id: 'zariyah', name: 'Zariyah', lang: 'ar-SA', disabled: false }],
+        },
+      ],
+    };
+    const props = makeProps({
+      ttsLang: 'bn',
+      onGetVoices: vi.fn((lang: string) => Promise.resolve(groupsByLang[lang] ?? [])),
+    });
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    expect(await waitFor(() => screen.getByText('Nabanita'))).toBeTruthy();
+    expect(screen.getByText('Aria')).toBeTruthy();
+    expect(screen.getByText('Zariyah')).toBeTruthy();
+    expect(screen.getByText('Edge TTS: 3 voices')).toBeTruthy();
   });
 
   test('choosing the narrator records the per-book narration preference', async () => {

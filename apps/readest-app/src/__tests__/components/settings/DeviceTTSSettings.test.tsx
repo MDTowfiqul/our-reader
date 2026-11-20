@@ -7,7 +7,7 @@
  * language with it; speed/pitch persist through saveViewSettings.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, act } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, act, waitFor } from '@testing-library/react';
 import type { ViewSettings } from '@/types/book';
 
 const state = vi.hoisted(() => ({
@@ -17,6 +17,14 @@ const state = vi.hoisted(() => ({
   } as unknown as ViewSettings,
   voices: [] as { name: string; lang: string; voiceURI: string }[],
   listeners: {} as Record<string, () => void>,
+}));
+
+const nativeVoicesState = vi.hoisted(() => ({
+  voices: [] as { id: string; name: string; lang: string }[],
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(() => Promise.resolve({ voices: nativeVoicesState.voices })),
 }));
 
 vi.mock('@/hooks/useTranslation', () => ({
@@ -98,6 +106,27 @@ describe('DeviceTTSSettings', () => {
       state.listeners['voiceschanged']?.();
     });
     expect(screen.getByText('Google US English (en-US)')).toBeTruthy();
+  });
+
+  it('lists the native system voices in the Tauri app when the WebView has none', async () => {
+    process.env['NEXT_PUBLIC_APP_PLATFORM'] = 'tauri';
+    try {
+      state.voices = [];
+      nativeVoicesState.voices = [
+        { id: 'bn-bd-x-ban-local', name: 'bn-bd-x-ban-local', lang: 'bn-BD' },
+        { id: 'bn-in-x-bnc-local', name: 'bn-in-x-bnc-local', lang: 'bn-IN' },
+      ];
+      render(<DeviceTTSSettings bookKey='book-1' />);
+      expect(await waitFor(() => screen.getByText('bn-bd-x-ban-local (bn-BD)'))).toBeTruthy();
+      expect(screen.getByText('bn-in-x-bnc-local (bn-IN)')).toBeTruthy();
+      fireEvent.change(screen.getByLabelText('Device voice'), {
+        target: { value: 'bn-bd-x-ban-local' },
+      });
+      const prefs = JSON.parse(localStorage.getItem('ttsPreferredVoices') || '{}');
+      expect(prefs['native-tts-bn']).toBe('bn-bd-x-ban-local');
+    } finally {
+      delete process.env['NEXT_PUBLIC_APP_PLATFORM'];
+    }
   });
 
   it('persists speed changes through saveViewSettings', () => {
