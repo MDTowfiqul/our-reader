@@ -33,6 +33,12 @@ const PITCH_STEP = 0.1;
 
 type DeviceVoice = { id: string; name: string; lang: string };
 
+const toDeviceVoice = (voice: SpeechSynthesisVoice): DeviceVoice => ({
+  id: voice.voiceURI || voice.name,
+  name: voice.name,
+  lang: voice.lang,
+});
+
 const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const _ = useTranslation();
   const { envConfig } = useEnv();
@@ -63,14 +69,7 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
       setSpeechSupported(false);
       return;
     }
-    const refresh = () =>
-      setVoices(
-        [...synth.getVoices()].map((voice) => ({
-          id: voice.voiceURI || voice.name,
-          name: voice.name,
-          lang: voice.lang,
-        })),
-      );
+    const refresh = () => setVoices([...synth.getVoices()].map(toDeviceVoice));
     refresh();
     synth.addEventListener('voiceschanged', refresh);
     return () => synth.removeEventListener('voiceschanged', refresh);
@@ -101,7 +100,7 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         } catch {
           // Engine absent mid-load; nothing to cancel.
         }
-        setVoices([...synth.getVoices()]);
+        setVoices([...synth.getVoices()].map(toDeviceVoice));
       };
       synth.addEventListener('voiceschanged', stop, { once: true });
       synth.speak(utterance);
