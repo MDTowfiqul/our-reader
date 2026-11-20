@@ -327,7 +327,7 @@ describe('TTSMiniPlayer', () => {
     const props = makeProps();
     render(<TTSMiniPlayer {...props} />);
     const btn = screen.getByLabelText('Playback settings');
-    expect(btn.textContent).toBe('1.3×'); // DEFAULT_VIEW_CONFIG ttsRate
+    expect(btn.textContent).toBe('1.0×'); // DEFAULT_TTS_CONFIG ttsRate
     fireEvent.click(btn);
     expect(props.onExpand).toHaveBeenCalled();
   });

@@ -22,6 +22,7 @@ import { WebSpeechClient } from './WebSpeechClient';
 import { NativeTTSClient } from './NativeTTSClient';
 import { EdgeTTSClient } from './EdgeTTSClient';
 import { BufferedTTSClient } from './BufferedTTSClient';
+import { groupVoicesByLanguage } from './voiceGroups';
 import { createBookTTSCacheStore } from './providers/bookCacheStore';
 import { CachingProvider } from './providers/cache';
 import { ReadestVoiceProvider } from './providers/readest';
@@ -2409,17 +2410,6 @@ export class TTSController extends EventTarget {
   async getVoices(lang: string) {
     const ttsWebVoices = await this.ttsWebClient.getVoices(lang);
     const ttsNativeVoices = (await this.ttsNativeClient?.getVoices(lang)) ?? [];
-    // Listed for every reader, the voices their plan lacks greyed out; hidden
-    // only when there is no catalog (kill switch, offline).
-    const ttsReadestVoices =
-      (await this.ttsReadestClient.getAllVoices()).length > 0
-        ? (await this.ttsReadestClient.getVoices(lang)).filter((group) => group.voices.length > 0)
-        : [];
-    // The picker is open: boot a GPU worker so the first window is warm, but
-    // only for a reader whose plan has a Readest voice to play.
-    if (ttsReadestVoices.some((group) => group.voices.some((voice) => !voice.disabled))) {
-      this.#readestProvider.warmup();
-    }
     // The book's own narrator leads the list when there is one: it is the best
     // voice available for that book by a wide margin.
     const narrationVoices = this.narrationAvailable
@@ -2436,12 +2426,57 @@ export class TTSController extends EventTarget {
     const voicesGroups = [
       ...narrationVoices,
       ...ttsCustomVoices,
-      ...ttsReadestVoices,
       ...ttsEdgeVoices,
       ...ttsNativeVoices,
       ...ttsWebVoices,
     ];
     return voicesGroups;
+  }
+
+  // Every voice, every language, grouped by language: the picker lists
+  // them under an Offline / Online section instead of one language at
+  // a time. The Readest voices are not listed here either.
+  async getAllVoices() {
+    const narrationVoices = this.narrationAvailable
+      ? await this.ttsMediaOverlayClient.getAllVoices()
+      : [];
+    const ttsCustomVoices = this.ttsCustomClient.initialized
+      ? await this.ttsCustomClient.getAllVoices()
+      : [];
+    const ttsEdgeVoices = this.ttsEdgeClient.initialized
+      ? await this.ttsEdgeClient.getAllVoices()
+      : [];
+    const ttsNativeVoices = (await this.ttsNativeClient?.getAllVoices()) ?? [];
+    const ttsWebVoices = await this.ttsWebClient.getAllVoices();
+
+    const voicesGroups = [
+      ...groupVoicesByLanguage(
+        narrationVoices,
+        'media-overlay',
+        this.ttsMediaOverlayClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsCustomVoices,
+        'custom',
+        this.ttsCustomClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsEdgeVoices,
+        'edge',
+        this.ttsEdgeClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsNativeVoices,
+        'native',
+        this.ttsNativeClient?.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsWebVoices,
+        'web-speech',
+        this.ttsWebClient.getCapabilities().worksOffline ?? false,
+      ),
+    ];
+    return voicesGroups.filter((group) => group.voices.length > 0);
   }
 
   async setVoice(voiceId: string, lang: string) {

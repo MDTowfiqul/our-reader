@@ -34,6 +34,9 @@ export type TTSVoicesGroup = {
   name: string;
   voices: TTSVoice[];
   disabled?: boolean;
+  // The voices work without internet (device speech, local narration).
+  // The picker groups by this first: Offline, then Online.
+  offline?: boolean;
 };
 
 export type TTSMark = {

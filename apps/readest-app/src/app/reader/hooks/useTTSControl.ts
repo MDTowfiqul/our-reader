@@ -1421,6 +1421,16 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     return [];
   };
 
+  // The voice picker lists every language at once, so it reads the full
+  // voice list in one call instead of one call per language.
+  const handleGetAllVoices = async (): Promise<TTSVoicesGroup[]> => {
+    const ttsController = ttsControllerRef.current;
+    if (ttsController) {
+      return ttsController.getAllVoices();
+    }
+    return [];
+  };
+
   const handleGetVoiceId = () => {
     const ttsController = ttsControllerRef.current;
     if (ttsController) {
@@ -1478,6 +1488,7 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
     handleSetRate,
     handleSetVoice,
     handleGetVoices,
+    handleGetAllVoices,
     handleGetVoiceId,
     handleSelectTimeout,
     handleBackToCurrentTTSLocation,

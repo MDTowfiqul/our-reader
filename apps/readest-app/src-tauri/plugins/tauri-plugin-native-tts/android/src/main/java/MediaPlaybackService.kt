@@ -648,6 +648,8 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
             context.startService(Intent(context, MediaPlaybackService::class.java))
         }
 
+        fun hasInstance(): Boolean = instance != null
+
         // Ask the running service to create its live TTS engine (idempotent).
         // The plugin calls this from init and get_all_voices so voices exist
         // before any sentence is spoken; enqueueLive/speakLiveNow trigger it

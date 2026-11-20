@@ -227,7 +227,9 @@ const SummaryPanel: React.FC<SummaryPanelProps> = ({ bookKey }) => {
       {summary && (
         <div className='flex flex-col gap-2'>
           <p className='text-muted-foreground text-xs italic'>{SUMMARY_DISCLAIMER}</p>
-          <p className='whitespace-pre-wrap text-sm leading-relaxed'>{summary}</p>
+          <div className='eink-bordered not-eink:bg-base-200 max-w-full self-start rounded-2xl rounded-bl-md px-3 py-2'>
+            <p className='whitespace-pre-wrap text-sm leading-relaxed'>{summary}</p>
+          </div>
         </div>
       )}
     </div>

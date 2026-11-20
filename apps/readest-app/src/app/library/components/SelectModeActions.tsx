@@ -23,8 +23,8 @@ interface SelectModeActionsProps {
   // When false (Linux desktop, Windows desktop, web) the Send button is
   // hidden entirely — those platforms can't surface a system share sheet
   // so the affordance would be misleading. Note: this is *file send* (hands
-  // the book file to the OS share sheet), distinct from "Share Book" in
-  // the per-item context menu, which generates a remote share link.
+  // the book file to the OS share sheet), the same file-share the
+  // per-item "Share Book" menu uses.
   sendEnabled?: boolean;
   // False when nothing in the selection can be pulled from the cloud — every
   // selected book is either already on this device or was never uploaded.

@@ -246,18 +246,18 @@ describe('init', () => {
 });
 
 describe('voices', () => {
-  test('lists the Readest group, and warms the worker', async () => {
+  test('does not list the Readest group in the picker', async () => {
     h.customInit = false;
     await controller.init();
     vi.mocked(readest().getVoices).mockResolvedValue([
       { id: 'readest-tts', name: 'Our Reader Voice', voices: READEST_VOICES },
     ]);
     const groups = await controller.getVoices('en');
-    expect(groups.map((g) => g.id)).toEqual(['readest-tts']);
-    expect(h.warmup).toHaveBeenCalledTimes(1);
+    expect(groups.map((g) => g.id)).not.toContain('readest-tts');
+    expect(h.warmup).not.toHaveBeenCalled();
   });
 
-  test('shows the Readest group greyed out to readers whose plan lacks it', async () => {
+  test('does not list the Readest group even when the plan lacks it', async () => {
     h.readestVoices = READEST_VOICES.map((voice) => ({ ...voice, disabled: true }));
     await controller.init();
     const locked = READEST_VOICES.map((voice) => ({ ...voice, disabled: true }));
@@ -265,8 +265,18 @@ describe('voices', () => {
       { id: 'readest-tts', name: 'Our Reader Voice', voices: locked, disabled: true },
     ]);
     const groups = await controller.getVoices('en');
-    expect(groups.find((g) => g.id === 'readest-tts')?.voices).toEqual(locked);
+    expect(groups.find((g) => g.id === 'readest-tts')).toBeUndefined();
     expect(h.warmup).not.toHaveBeenCalled();
+  });
+
+  test('lists every language at once, grouped by language and online/offline', async () => {
+    await controller.init();
+    const groups = await controller.getAllVoices();
+    expect(groups.map((g) => g.id)).toEqual(['custom-en', 'custom-mul', 'edge-en']);
+    expect(groups.every((g) => g.offline === false)).toBe(true);
+    expect(groups.find((g) => g.id === 'edge-en')?.voices).toEqual([
+      { id: 'en-US-AriaNeural', name: 'Aria', lang: 'en-US' },
+    ]);
   });
 });
 

@@ -334,16 +334,36 @@ export class NativeTTSClient implements TTSClient {
       const result = await invoke<{ voices: TTSVoice[] }>('plugin:native-tts|get_all_voices');
       // Match Web Speech's Apple voice-family exclusions. iOS also exposes
       // novelty and legacy Eloquence voices through the native API.
-      this.#voices = result.voices.filter(
-        (voice) =>
-          !voice.id.startsWith('com.apple.eloquence.') &&
-          !voice.id.startsWith('com.apple.speech.synthesis.voice.'),
-      );
+      // Names are cleaned once, here, so both the per-language picker and
+      // the all-languages picker show them without the engine prefix.
+      this.#voices = result.voices
+        .filter(
+          (voice) =>
+            !voice.id.startsWith('com.apple.eloquence.') &&
+            !voice.id.startsWith('com.apple.speech.synthesis.voice.'),
+        )
+        .map((voice) => ({ ...voice, name: this.#cleanVoiceName(voice) }));
       return this.#voices;
     } catch (error) {
       console.error('Failed to get all voices:', error);
       return [];
     }
+  }
+
+  // Android's raw voice names carry the engine prefix and the locale
+  // (e.g. `bn-bd-x-ban-local`); the picker shows the cleaned name.
+  #cleanVoiceName(voice: TTSVoice): string {
+    const { name, lang } = voice;
+    const engineId = voice.id.split('_')[0]!;
+    let cleaned = name;
+    if (engineId in TTSEngines) {
+      cleaned = cleaned
+        .replace(`${engineId}_`, '')
+        .replace(`${lang}-`, '')
+        .replace('Neural', '')
+        .trim();
+    }
+    return cleaned.replace('NOT_SET', _('Default'));
   }
 
   async getVoices(lang: string) {
@@ -355,20 +375,11 @@ export class NativeTTSClient implements TTSClient {
     const filteredVoices = voices.filter((v) => isSameLang(v.lang, lang));
     // Group by language, not by engine: the picker lists one collapsible
     // group per language (Bengali, English, Arabic, ...), each opening to
-    // its voices. The engine prefix is still stripped from display names.
+    // its voices.
     const voiceGroups = new Map<string, TTSVoice[]>();
     filteredVoices.forEach((voice) => {
-      const { name, lang } = voice;
+      const { lang } = voice;
       const groupId = `native-${normalizedLangCode(lang)}`;
-      const engineId = voice.id.split('_')[0]!;
-      if (engineId in TTSEngines) {
-        voice.name = name
-          .replace(`${engineId}_`, '')
-          .replace(`${lang}-`, '')
-          .replace('Neural', '')
-          .trim();
-      }
-      voice.name = voice.name.replace('NOT_SET', _('Default'));
       if (!voiceGroups.has(groupId)) {
         voiceGroups.set(groupId, []);
       }
@@ -383,6 +394,7 @@ export class NativeTTSClient implements TTSClient {
             name: getLanguageName(groupId.replace('native-', '')),
             voices: voices.sort(TTSUtils.sortVoicesPreferLocaleFunc(locale)),
             disabled: !this.initialized || voices.length === 0,
+            offline: this.getCapabilities().worksOffline ?? false,
           }) as TTSVoicesGroup,
       )
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -404,6 +416,8 @@ export class NativeTTSClient implements TTSClient {
       gapControl: false,
       liveRateChange: false,
       windowedPrefetch: true,
+      // The OS renders the audio on-device: these voices work offline.
+      worksOffline: true,
     };
   }
 

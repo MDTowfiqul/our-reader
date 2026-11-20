@@ -17,9 +17,15 @@ import {
   MdTextIncrease,
 } from 'react-icons/md';
 import { RiForward30Line, RiReplay15Line, RiVoiceAiFill } from 'react-icons/ri';
+import { PiPushPin, PiPushPinFill } from 'react-icons/pi';
 import { TbArrowBarToRight } from 'react-icons/tb';
+import { invoke } from '@tauri-apps/api/core';
 import { useAppRouter } from '@/hooks/useAppRouter';
 import { TTSVoicesGroup } from '@/services/tts';
+import type { TTSVoice } from '@/services/tts/types';
+import { TTSUtils } from '@/services/tts/TTSUtils';
+import { buildVoicePickerSections } from '@/services/tts/voiceGroups';
+import { isTauriAppPlatform } from '@/services/environment';
 import { MEDIA_OVERLAY_VOICE_ID } from '@/services/tts/mediaOverlay';
 import type { TTSLoopState } from '@/services/tts/TTSController';
 import { saveViewSettings } from '@/helpers/settings';
@@ -95,7 +101,7 @@ type TTSPlayerSheetProps = {
   onSetRate: (rate: number) => void;
   // The TTS clients finished initializing: until then there are no voices.
   clientsReady: boolean;
-  onGetVoices: (lang: string) => Promise<TTSVoicesGroup[]>;
+  onGetAllVoices: () => Promise<TTSVoicesGroup[]>;
   onSetVoice: (voice: string, lang: string) => void;
   onGetVoiceId: () => string;
   onSelectTimeout: (bookKey: string, value: number) => void;
@@ -129,28 +135,6 @@ type TTSPlayerSheetProps = {
   activeSectionIndex: number | null;
 };
 
-// Merge voice groups fetched for several languages: groups with the same id
-// become one (their voices concatenated, deduped by voice id), so the picker
-// shows one Edge TTS group holding Bengali, English and Arabic voices.
-const mergeVoiceGroups = (groups: TTSVoicesGroup[]): TTSVoicesGroup[] => {
-  const merged = new Map<string, TTSVoicesGroup>();
-  for (const group of groups) {
-    const existing = merged.get(group.id);
-    if (!existing) {
-      merged.set(group.id, { ...group, voices: [...group.voices] });
-      continue;
-    }
-    const seen = new Set(existing.voices.map((voice) => voice.id));
-    for (const voice of group.voices) {
-      if (!seen.has(voice.id)) {
-        seen.add(voice.id);
-        existing.voices.push(voice);
-      }
-    }
-  }
-  return [...merged.values()];
-};
-
 // Lyric line sizes (px) the A−/A+ buttons step through; 14 is the old text-sm.
 const LYRIC_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 38];
 const DEFAULT_LYRIC_FONT_SIZE = 14;
@@ -178,7 +162,7 @@ const TTSPlayerSheet = ({
   onGetLyricLoopRange,
   onSetRate,
   clientsReady,
-  onGetVoices,
+  onGetAllVoices,
   onSetVoice,
   onGetVoiceId,
   onSelectTimeout,
@@ -213,19 +197,26 @@ const TTSPlayerSheet = ({
   const [coverFailed, setCoverFailed] = useState(false);
   const [view, setView] = useState<SheetView>('main');
   const [voiceGroups, setVoiceGroups] = useState<TTSVoicesGroup[]>([]);
+  const [pinnedLangs, setPinnedLangs] = useState<string[]>([]);
+  const [pinnedVoices, setPinnedVoices] = useState<string[]>([]);
+  // Pinned languages and voices stay at the top, in a Pinned section.
+  const voiceSections = useMemo(
+    () => buildVoicePickerSections(voiceGroups, pinnedLangs, pinnedVoices),
+    [voiceGroups, pinnedLangs, pinnedVoices],
+  );
   const [rate, setRate] = useState(viewSettings?.ttsRate ?? 1.0);
   const [selectedVoice, setSelectedVoice] = useState('');
   const [voiceSearch, setVoiceSearch] = useState('');
   const [testingVoice, setTestingVoice] = useState(false);
-  // The voice list is an accordion: at most one group open. Until the reader
-  // taps a header, the group of the voice in use (else the first) is open;
+  // The voice list is an accordion: at most one row open. Until the reader
+  // taps a header, the row of the voice in use (else the first) is open;
   // tapping the open header folds it (null: all folded).
-  const [pickedGroup, setPickedGroup] = useState<string | null | undefined>(undefined);
-  const openGroup =
-    pickedGroup !== undefined
-      ? pickedGroup
-      : (voiceGroups.find((group) => group.voices.some((voice) => voice.id === selectedVoice))
-          ?.id ?? voiceGroups[0]?.id);
+  const [pickedRow, setPickedRow] = useState<string | null | undefined>(undefined);
+  const firstRowKey = voiceSections[0]?.rows[0]?.key;
+  const selectedRowKey = voiceSections
+    .flatMap((section) => section.rows)
+    .find((row) => row.voices.some((voice) => voice.id === selectedVoice))?.key;
+  const openRow = pickedRow !== undefined ? pickedRow : (selectedRowKey ?? firstRowKey);
   const timerLabel = useCountdownLabel(timeoutTimestamp);
   const iconSize18 = useResponsiveSize(18);
   const iconSize24 = useResponsiveSize(24);
@@ -339,12 +330,9 @@ const TTSPlayerSheet = ({
     // language changed) must not overwrite its result.
     let current = true;
     const fetchVoices = async () => {
-      // The book's language leads, but English and Arabic voices are listed
-      // too: a reader may prefer them for any book. Groups with the same id
-      // merge (e.g. one Edge TTS group), voices dedup by id.
-      const langs = [...new Set([ttsLang, 'en', 'ar'])];
-      const results = await Promise.all(langs.map((lang) => onGetVoices(lang)));
-      const groups = mergeVoiceGroups(results.flat());
+      // Every language at once, in one call: the picker organises them
+      // under Offline / Online sections, grouped by language.
+      const groups = await onGetAllVoices();
       if (!current) return;
       const voicesCount = groups.reduce((acc, group) => acc + group.voices.length, 0);
       if (!groups || voicesCount === 0) {
@@ -359,6 +347,8 @@ const TTSPlayerSheet = ({
         setVoiceGroups(groups);
       }
     };
+    setPinnedLangs(TTSUtils.getPinnedLangs());
+    setPinnedVoices(TTSUtils.getPinnedVoices());
     fetchVoices();
     return () => {
       current = false;
@@ -399,6 +389,24 @@ const TTSPlayerSheet = ({
     setView('main');
   };
 
+  // Pins keep a favourite language or voice at the top of the picker, in
+  // the Pinned section, and survive app restarts.
+  const handleTogglePinLang = (lang: string) => {
+    const next = pinnedLangs.includes(lang)
+      ? pinnedLangs.filter((l) => l !== lang)
+      : [...pinnedLangs, lang];
+    setPinnedLangs(next);
+    TTSUtils.setPinnedLangs(next);
+  };
+
+  const handleTogglePinVoice = (voiceId: string) => {
+    const next = pinnedVoices.includes(voiceId)
+      ? pinnedVoices.filter((id) => id !== voiceId)
+      : [...pinnedVoices, voiceId];
+    setPinnedVoices(next);
+    TTSUtils.setPinnedVoices(next);
+  };
+
   const handleSelectTimeout = (value: number) => {
     onSelectTimeout(bookKey, value);
     setView('main');
@@ -410,6 +418,14 @@ const TTSPlayerSheet = ({
   // the button stays visible as the fallback, never a dead link.
   const handleOpenPhoneTTSSettings = () => {
     if (typeof window === 'undefined') return;
+    if (isTauriAppPlatform()) {
+      // An intent: URL in the WebView lands on a "Web page not available"
+      // error; the native plugin fires the intent instead.
+      void invoke('plugin:native-tts|open_tts_settings').catch(() => {
+        // No settings app to open; the note stays visible.
+      });
+      return;
+    }
     if (/Android/i.test(window.navigator.userAgent)) {
       window.location.href = 'intent:#Intent;action=android.settings.TTS_SETTINGS;end';
     }
@@ -553,6 +569,62 @@ const TTSPlayerSheet = ({
         </div>
       </div>
     );
+
+  // One voice row: the select button plus a pin toggle. A single pinned
+  // voice also shows its language, since it sits outside its language row.
+  const renderVoiceRow = (voice: TTSVoice, rowKey: string, showLang: boolean) => (
+    <div key={`${rowKey}-${voice.id}`} className='flex w-full items-center gap-1 px-2'>
+      <button
+        type='button'
+        // A premium voice the plan lacks stays tappable: it leads to the
+        // upgrade instead of speaking.
+        disabled={voice.disabled && !voice.tier}
+        onClick={() => (voice.disabled ? handleUpgrade() : handleSelectVoice(voice.id, voice.lang))}
+        className='flex flex-1 items-center gap-2 rounded-lg py-2 text-start'
+      >
+        <span className='flex h-6 w-6 items-center justify-center'>
+          {selectedVoice === voice.id && <MdCheck className='text-base-content' />}
+        </span>
+        <span
+          className={clsx(
+            'overflow-hidden text-ellipsis text-base sm:text-sm',
+            voice.disabled && 'text-base-content/40',
+          )}
+        >
+          {_(voice.name)}
+        </span>
+        {showLang && (
+          <span className='text-base-content/50 shrink-0 text-sm sm:text-xs'>
+            {getLanguageName(voice.lang)}
+          </span>
+        )}
+        {voice.variant && (
+          <span className='badge badge-sm badge-ghost ms-auto shrink-0'>
+            {voice.variant === 'multilingual' ? _('Multilingual') : _('Expressive')}
+          </span>
+        )}
+        {voice.tier && (
+          <span
+            className={clsx('badge badge-sm badge-ghost shrink-0', !voice.variant && 'ms-auto')}
+          >
+            {voice.tier === 'pro' ? _('Pro') : _('Plus')}
+          </span>
+        )}
+      </button>
+      <button
+        type='button'
+        aria-label={
+          pinnedVoices.includes(voice.id)
+            ? _('Unpin {{name}}', { name: voice.name })
+            : _('Pin {{name}}', { name: voice.name })
+        }
+        onClick={() => handleTogglePinVoice(voice.id)}
+        className='shrink-0 rounded-lg p-1.5 text-base-content/60'
+      >
+        {pinnedVoices.includes(voice.id) ? <PiPushPinFill size={16} /> : <PiPushPin size={16} />}
+      </button>
+    </div>
+  );
 
   return (
     <Dialog
@@ -905,8 +977,7 @@ const TTSPlayerSheet = ({
             <div className='flex flex-col gap-2 px-2 pb-2'>
               <p className='text-base-content/65 text-sm leading-relaxed'>
                 {_(
-                  'Voices come from your phone, and no voice for {{lang}} is installed. Install one in your phone’s text-to-speech settings, or adjust the device voices below.',
-                  { lang: getLanguageName(ttsLang) },
+                  'No voices found. Your phone has no text-to-speech voices installed, and the online voices could not be reached. Install a voice in your phone’s text-to-speech settings, or check your connection and try again.',
                 )}
               </p>
               <div className='flex flex-wrap gap-2'>
@@ -932,101 +1003,89 @@ const TTSPlayerSheet = ({
               </p>
             </div>
           )}
-          {voiceGroups
-            .map((voiceGroup) => {
-              if (!voiceSearch.trim()) return voiceGroup;
-              const query = voiceSearch.trim().toLowerCase();
-              const voices = voiceGroup.voices.filter(
-                (voice) =>
-                  voice.name.toLowerCase().includes(query) ||
-                  getLanguageName(voice.lang).toLowerCase().includes(query) ||
-                  voice.lang.toLowerCase().includes(query),
-              );
-              return { ...voiceGroup, voices };
-            })
-            .filter((voiceGroup) => voiceGroup.voices.length > 0)
-            .map((voiceGroup) => {
-              // While searching, every matching group stays expanded so
-              // results are visible without opening each group by hand.
-              const collapsed = voiceSearch.trim() ? false : voiceGroup.id !== openGroup;
-              // The group holding the voice in use stands out, and names it
-              // while folded (open, its check mark already shows it).
-              const current = voiceGroup.voices.find((voice) => voice.id === selectedVoice);
-              return (
-                <div key={voiceGroup.id}>
-                  <button
-                    type='button'
-                    aria-expanded={!collapsed}
-                    onClick={() => setPickedGroup(collapsed ? voiceGroup.id : null)}
-                    className={clsx(
-                      'flex w-full items-center gap-1 px-2 py-1 text-start text-sm sm:text-xs',
-                      current ? 'text-base-content font-semibold' : 'text-base-content/60',
-                    )}
-                  >
-                    <span className='flex-1'>
-                      {/* A single-voice group (a book's own narrator) would otherwise
-                      read "Narration: 1 voices". */}
-                      {voiceGroup.voices.length === 1
-                        ? _(voiceGroup.name)
-                        : _('{{engine}}: {{count}} voices', {
-                            engine: _(voiceGroup.name),
-                            count: voiceGroup.voices.length,
-                          })}
-                    </span>
-                    {collapsed && current && (
-                      <span className='max-w-[50%] shrink-0 truncate'>{_(current.name)}</span>
-                    )}
-                    <MdExpandMore
-                      className={clsx('shrink-0', collapsed && '-rotate-90 rtl:rotate-90')}
-                    />
-                  </button>
-                  {!collapsed &&
-                    voiceGroup.voices.map((voice) => (
-                      <button
-                        key={`${voiceGroup.id}-${voice.id}`}
-                        type='button'
-                        // A premium voice the plan lacks stays tappable: it
-                        // leads to the upgrade instead of speaking.
-                        disabled={voice.disabled && !voice.tier}
-                        onClick={() =>
-                          voice.disabled ? handleUpgrade() : handleSelectVoice(voice.id, voice.lang)
-                        }
-                        className='flex w-full items-center gap-2 rounded-lg px-2 py-2 text-start'
-                      >
-                        <span className='flex h-6 w-6 items-center justify-center'>
-                          {selectedVoice === voice.id && <MdCheck className='text-base-content' />}
-                        </span>
-                        <span
+          {voiceSections.map((section) => {
+            // While searching, every matching row stays expanded so
+            // results are visible without opening each row by hand.
+            const rows = section.rows
+              .map((row) => {
+                if (!voiceSearch.trim()) return row;
+                const query = voiceSearch.trim().toLowerCase();
+                const voices = row.voices.filter(
+                  (voice) =>
+                    voice.name.toLowerCase().includes(query) ||
+                    getLanguageName(voice.lang).toLowerCase().includes(query) ||
+                    voice.lang.toLowerCase().includes(query),
+                );
+                return { ...row, voices };
+              })
+              .filter((row) => row.voices.length > 0);
+            if (rows.length === 0) return null;
+            return (
+              <div key={section.key}>
+                <p className='text-base-content/50 px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide'>
+                  {section.key === 'pinned'
+                    ? _('Pinned')
+                    : section.key === 'offline'
+                      ? _('Offline — works without internet')
+                      : _('Online — needs internet')}
+                </p>
+                {rows.map((row) => {
+                  if (row.single) return renderVoiceRow(row.voices[0]!, row.key, true);
+                  // While searching, every matching row stays expanded.
+                  const collapsed = voiceSearch.trim() ? false : row.key !== openRow;
+                  // The row holding the voice in use stands out, and names it
+                  // while folded (open, its check mark already shows it).
+                  const current = row.voices.find((voice) => voice.id === selectedVoice);
+                  return (
+                    <div key={row.key}>
+                      <div className='flex w-full items-center gap-1 px-2'>
+                        <button
+                          type='button'
+                          aria-expanded={!collapsed}
+                          onClick={() => setPickedRow(collapsed ? row.key : null)}
                           className={clsx(
-                            'overflow-hidden text-ellipsis text-base sm:text-sm',
-                            voice.disabled && 'text-base-content/40',
+                            'flex flex-1 items-center gap-1 py-1 text-start text-sm sm:text-xs',
+                            current ? 'text-base-content font-semibold' : 'text-base-content/60',
                           )}
                         >
-                          {_(voice.name)}
-                        </span>
-                        <span className='text-base-content/50 shrink-0 text-sm sm:text-xs'>
-                          {getLanguageName(voice.lang)}
-                        </span>
-                        {voice.variant && (
-                          <span className='badge badge-sm badge-ghost ms-auto shrink-0'>
-                            {voice.variant === 'multilingual' ? _('Multilingual') : _('Expressive')}
+                          <span className='flex-1'>
+                            {/* A single-voice row (a book's own narrator) would otherwise
+                            read "Narration: 1 voices". */}
+                            {row.voices.length === 1
+                              ? _(row.name)
+                              : _('{{language}}: {{count}} voices', {
+                                  language: _(row.name),
+                                  count: row.voices.length,
+                                })}
                           </span>
-                        )}
-                        {voice.tier && (
-                          <span
-                            className={clsx(
-                              'badge badge-sm badge-ghost shrink-0',
-                              !voice.variant && 'ms-auto',
-                            )}
-                          >
-                            {voice.tier === 'pro' ? _('Pro') : _('Plus')}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                </div>
-              );
-            })}
+                          {collapsed && current && (
+                            <span className='max-w-[50%] shrink-0 truncate'>{_(current.name)}</span>
+                          )}
+                          <MdExpandMore
+                            className={clsx('shrink-0', collapsed && '-rotate-90 rtl:rotate-90')}
+                          />
+                        </button>
+                        <button
+                          type='button'
+                          aria-label={
+                            row.pinned
+                              ? _('Unpin {{language}}', { language: row.name })
+                              : _('Pin {{language}}', { language: row.name })
+                          }
+                          onClick={() => handleTogglePinLang(row.lang)}
+                          className='shrink-0 rounded-lg p-1.5 text-base-content/60'
+                        >
+                          {row.pinned ? <PiPushPinFill size={16} /> : <PiPushPin size={16} />}
+                        </button>
+                      </div>
+                      {!collapsed &&
+                        row.voices.map((voice) => renderVoiceRow(voice, row.key, false))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
       {view === 'timer' && (

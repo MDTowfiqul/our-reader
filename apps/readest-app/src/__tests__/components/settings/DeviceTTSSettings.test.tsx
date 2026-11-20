@@ -8,6 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, act, waitFor } from '@testing-library/react';
+import { invoke } from '@tauri-apps/api/core';
 import type { ViewSettings } from '@/types/book';
 
 const state = vi.hoisted(() => ({
@@ -124,6 +125,57 @@ describe('DeviceTTSSettings', () => {
       });
       const prefs = JSON.parse(localStorage.getItem('ttsPreferredVoices') || '{}');
       expect(prefs['native-tts-bn']).toBe('bn-bd-x-ban-local');
+    } finally {
+      delete process.env['NEXT_PUBLIC_APP_PLATFORM'];
+    }
+  });
+
+  it('retries the native voice load when the first attempts come back empty', async () => {
+    process.env['NEXT_PUBLIC_APP_PLATFORM'] = 'tauri';
+    try {
+      state.voices = [];
+      nativeVoicesState.voices = [
+        { id: 'bn-bd-x-ban-local', name: 'bn-bd-x-ban-local', lang: 'bn-BD' },
+      ];
+      // The engine is still warming up: two empty lists, then the voices.
+      vi.mocked(invoke).mockResolvedValueOnce({ voices: [] }).mockResolvedValueOnce({ voices: [] });
+      render(<DeviceTTSSettings bookKey='book-1' />);
+      expect(
+        await waitFor(() => screen.getByText('bn-bd-x-ban-local (bn-BD)'), { timeout: 5000 }),
+      ).toBeTruthy();
+    } finally {
+      delete process.env['NEXT_PUBLIC_APP_PLATFORM'];
+    }
+  });
+
+  it('offers a reload on Tauri when the native voices stay empty', async () => {
+    process.env['NEXT_PUBLIC_APP_PLATFORM'] = 'tauri';
+    try {
+      state.voices = [];
+      nativeVoicesState.voices = [];
+      render(<DeviceTTSSettings bookKey='book-1' />);
+      const reload = await waitFor(() => screen.getByText('Reload voices'), { timeout: 5000 });
+      const callsBefore = vi.mocked(invoke).mock.calls.length;
+      nativeVoicesState.voices = [
+        { id: 'bn-bd-x-ban-local', name: 'bn-bd-x-ban-local', lang: 'bn-BD' },
+      ];
+      fireEvent.click(reload);
+      expect(await waitFor(() => screen.getByText('bn-bd-x-ban-local (bn-BD)'))).toBeTruthy();
+      expect(vi.mocked(invoke).mock.calls.length).toBeGreaterThan(callsBefore);
+    } finally {
+      delete process.env['NEXT_PUBLIC_APP_PLATFORM'];
+    }
+  });
+
+  it('opens the phone TTS settings through the native plugin on Tauri', async () => {
+    process.env['NEXT_PUBLIC_APP_PLATFORM'] = 'tauri';
+    try {
+      state.voices = [];
+      nativeVoicesState.voices = [];
+      render(<DeviceTTSSettings bookKey='book-1' />);
+      await waitFor(() => screen.getByText('Reload voices'), { timeout: 5000 });
+      fireEvent.click(screen.getByText('Open phone TTS settings'));
+      expect(invoke).toHaveBeenCalledWith('plugin:native-tts|open_tts_settings');
     } finally {
       delete process.env['NEXT_PUBLIC_APP_PLATFORM'];
     }

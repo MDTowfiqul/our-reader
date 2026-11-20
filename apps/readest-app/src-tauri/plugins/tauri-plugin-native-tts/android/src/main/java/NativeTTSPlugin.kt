@@ -307,6 +307,13 @@ class NativeTTSPlugin(private val activity: Activity) : Plugin(activity) {
         coroutineScope.launch {
             try {
                 MediaPlaybackService.ensureService(activity)
+                // The service starts asynchronously: ensureLive is a no-op
+                // until the instance exists, so wait for it first or the
+                // readiness wait below expires before the service is there.
+                for (i in 0 until 20) {
+                    if (MediaPlaybackService.hasInstance()) break
+                    delay(100)
+                }
                 MediaPlaybackService.ensureLive()
                 // Voices only exist once the service engine is ready; wait
                 // briefly rather than returning an empty list.
@@ -337,6 +344,20 @@ class NativeTTSPlugin(private val activity: Activity) : Plugin(activity) {
             } catch (e: Exception) {
                 invoke.reject("Exception getting voices: ${e.message}")
             }
+        }
+    }
+
+    // Open the phone's Text-to-speech settings. An intent: URL navigated
+    // to from the WebView lands on a "Web page not available" error, so
+    // the settings panel calls this command instead.
+    @Command
+    fun open_tts_settings(invoke: Invoke) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_TTS_SETTINGS)
+            activity.startActivity(intent)
+            invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject("Could not open TTS settings: ${e.message}")
         }
     }
 

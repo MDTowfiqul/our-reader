@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useEnv } from '@/context/EnvContext';
 import { useReaderStore } from '@/store/readerStore';
@@ -53,15 +53,35 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const [voices, setVoices] = useState<DeviceVoice[]>([]);
   const [, setVoiceTick] = useState(0);
   const [speechSupported, setSpeechSupported] = useState(true);
-  const [ttsRate, setTtsRate] = useState(viewSettings.ttsRate ?? 1.3);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [ttsRate, setTtsRate] = useState(viewSettings.ttsRate ?? 1.0);
   const [ttsPitch, setTtsPitch] = useState(viewSettings.ttsPitch ?? 1.0);
+
+  // The native engine starts asynchronously: the first call can land
+  // before the service exists and come back empty, so retry a few times
+  // before giving up and offering a manual reload.
+  const loadNativeVoices = useCallback(async () => {
+    setLoadingVoices(true);
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const result = await invoke<{ voices: DeviceVoice[] }>('plugin:native-tts|get_all_voices');
+        if (result.voices.length > 0) {
+          setVoices(result.voices);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+      setVoices([]);
+    } catch {
+      setVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isTauri) {
-      // Same call the native TTS client makes for the voice picker.
-      invoke<{ voices: DeviceVoice[] }>('plugin:native-tts|get_all_voices')
-        .then((result) => setVoices(result.voices))
-        .catch(() => setVoices([]));
+      void loadNativeVoices();
       return;
     }
     const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
@@ -80,6 +100,14 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   // the manual-steps note stays visible as the fallback.
   const handleOpenPhoneTTSSettings = () => {
     if (typeof window === 'undefined') return;
+    if (isTauri) {
+      // An intent: URL in the WebView lands on a "Web page not
+      // available" error; the native plugin fires the intent instead.
+      void invoke('plugin:native-tts|open_tts_settings').catch(() => {
+        // No settings app to open; the note stays visible.
+      });
+      return;
+    }
     if (/Android/i.test(window.navigator.userAgent)) {
       window.location.href = 'intent:#Intent;action=android.settings.TTS_SETTINGS;end';
     }
@@ -146,9 +174,13 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         {!speechSupported || voices.length === 0 ? (
           <div className='pe-4'>
             <p className='text-base-content/65 text-sm leading-relaxed'>
-              {_(
-                'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
-              )}
+              {isTauri
+                ? loadingVoices
+                  ? _('Loading device voices…')
+                  : _('Couldn’t load the device voices.')
+                : _(
+                    'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
+                  )}
             </p>
             {speechSupported && (
               <div className='flex flex-wrap gap-2'>
@@ -159,6 +191,15 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
                     onClick={handleLoadVoices}
                   >
                     {_('Load device voices')}
+                  </button>
+                )}
+                {isTauri && !loadingVoices && (
+                  <button
+                    type='button'
+                    className='btn btn-contrast btn-sm eink-bordered mt-2'
+                    onClick={() => void loadNativeVoices()}
+                  >
+                    {_('Reload voices')}
                   </button>
                 )}
                 <button
