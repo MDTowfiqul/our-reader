@@ -134,9 +134,7 @@ const TelegramBackupForm: React.FC = () => {
     <div className='space-y-5'>
       <BoxedList
         title={_('Telegram Backup')}
-        description={_(
-          'Create a bot with @BotFather, add it to your chat or channel, then paste its token and the chat ID. Back up now sends the backup zip to that chat.',
-        )}
+        description={_('Sends a backup zip of your library to your own Telegram chat or channel.')}
       >
         <SettingsSwitchRow
           label={_('Enable Telegram Backup')}
@@ -198,6 +196,33 @@ const TelegramBackupForm: React.FC = () => {
         {status && <p className='text-success px-4 pb-3 text-sm'>{status}</p>}
         {error && <p className='text-error px-4 pb-3 text-sm'>{error}</p>}
       </BoxedList>
+      <div className='px-4'>
+        <p className='text-base-content/65 text-sm font-semibold'>{_('How to connect Telegram')}</p>
+        <ol className='text-base-content/65 list-decimal space-y-1 ps-5 text-sm leading-relaxed'>
+          <li>
+            {_(
+              'In Telegram, message @BotFather and send /newbot. Give the bot a name, then copy the token it replies with and paste it into Bot Token above.',
+            )}
+          </li>
+          <li>
+            {_(
+              'Find your chat ID: for your own chat, message @userinfobot and copy the number it shows; for a group, add @RawDataBot to the group and copy the chat id it shows (it starts with -100).',
+            )}
+          </li>
+          <li>
+            {_(
+              'Add your bot to the group or channel it should send to. A bot can only send where it was added.',
+            )}
+          </li>
+          <li>{_('Paste the chat ID into Chat ID above.')}</li>
+          <li>
+            {_('Turn on Enable Telegram Backup — Back up now stays disabled until it is on.')}
+          </li>
+          <li>
+            {_('Tap Test connection, then Back up now. The backup zip arrives in that chat.')}
+          </li>
+        </ol>
+      </div>
       <Tips>
         <li>
           {_(

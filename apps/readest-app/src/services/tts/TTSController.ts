@@ -1248,7 +1248,7 @@ export class TTSController extends EventTarget {
   // cannot be enumerated or the spoken text cannot be located in it.
   async getSurroundingSentences(
     markText: string,
-  ): Promise<{ prev: string | null; current: string; next: string | null } | null> {
+  ): Promise<{ prev: string[]; current: string; next: string[] } | null> {
     if (this.narrationActive) return null;
     if (this.#ttsGranularity !== 'sentence') return null;
     const doc = this.#ttsDoc;
@@ -1319,9 +1319,9 @@ export class TTSController extends EventTarget {
     if (idx < 0) return null;
     this.#lastSentenceListIndex = idx;
     return {
-      prev: idx > 0 ? sentences[idx - 1]! : null,
+      prev: sentences.slice(Math.max(0, idx - 3), idx),
       current: markText,
-      next: idx + 1 < sentences.length ? sentences[idx + 1]! : null,
+      next: sentences.slice(idx + 1, idx + 4),
     };
   }
 

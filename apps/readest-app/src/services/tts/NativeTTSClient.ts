@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { addPluginListener, PluginListener } from '@tauri-apps/api/core';
 import { getUserLocale } from '@/utils/misc';
-import { isSameLang } from '@/utils/lang';
+import { getLanguageName, isSameLang, normalizedLangCode } from '@/utils/lang';
 import { parseSSMLMarks } from '@/utils/ssml';
 import { stubTranslation as _ } from '@/utils/misc';
 import { TTSCapabilities, TTSClient, TTSMessageEvent } from './TTSClient';
@@ -353,18 +353,20 @@ export class NativeTTSClient implements TTSClient {
     // whose sections mix region variants (e.g. en-US front matter and en-GB
     // body text); the requested locale's voices sort first. See #4033.
     const filteredVoices = voices.filter((v) => isSameLang(v.lang, lang));
+    // Group by language, not by engine: the picker lists one collapsible
+    // group per language (Bengali, English, Arabic, ...), each opening to
+    // its voices. The engine prefix is still stripped from display names.
     const voiceGroups = new Map<string, TTSVoice[]>();
     filteredVoices.forEach((voice) => {
       const { name, lang } = voice;
-      let groupId = voice.id.split('_')[0]!;
-      if (groupId in TTSEngines) {
+      const groupId = `native-${normalizedLangCode(lang)}`;
+      const engineId = voice.id.split('_')[0]!;
+      if (engineId in TTSEngines) {
         voice.name = name
-          .replace(`${groupId}_`, '')
+          .replace(`${engineId}_`, '')
           .replace(`${lang}-`, '')
           .replace('Neural', '')
           .trim();
-      } else {
-        groupId = 'default';
       }
       voice.name = voice.name.replace('NOT_SET', _('Default'));
       if (!voiceGroups.has(groupId)) {
@@ -378,16 +380,12 @@ export class NativeTTSClient implements TTSClient {
         ([groupId, voices]) =>
           ({
             id: groupId,
-            name: TTSEngines[groupId] || groupId,
+            name: getLanguageName(groupId.replace('native-', '')),
             voices: voices.sort(TTSUtils.sortVoicesPreferLocaleFunc(locale)),
             disabled: !this.initialized || voices.length === 0,
           }) as TTSVoicesGroup,
       )
-      .sort((a, b) => {
-        if (a.id === 'default') return -1;
-        if (b.id === 'default') return 1;
-        return a.id.localeCompare(b.id);
-      });
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   setPrimaryLang(lang: string) {

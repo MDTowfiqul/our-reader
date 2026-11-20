@@ -32,7 +32,7 @@ interface LibraryHeaderProps {
   onImportBooksFromDirectory?: () => void;
   onImportFromWebBrowser?: () => void;
   onImportBookFromNovelUrl?: () => void;
-  onOpenBoighar: () => void;
+  onOpenBoighar?: () => void;
   onOpenCatalogManager: () => void;
   onOpenFeeds: () => void;
   onToggleSelectMode: () => void;
@@ -273,21 +273,25 @@ const LibraryHeader: React.FC<LibraryHeaderProps> = ({
           <div className='flex h-full items-center gap-x-2 sm:gap-x-4'>
             {/* Our Reader: opens the Our Boighar library in an in-app
                 browser; books picked there import straight into the reader.
+                The button only renders when the caller passes the handler
+                (the Boighar browser lives on its own branch until merged).
                 NOTE: if the planned Our Boighar -> Our Ebooks rename is
                 executed, update the URL in src/services/boighar.ts. */}
-            <button
-              onClick={onOpenBoighar}
-              className='btn btn-ghost text-base-content/85 h-8 min-h-8 px-2'
-              title={_('Back to Boighar')}
-              aria-label={_('Back to Boighar')}
-            >
-              {/* Icon-only below sm: the full label crowds the search box
-                  out of the header at phone widths. */}
-              <PiBookOpen role='none' className='h-5 w-5 sm:hidden' />
-              <span className='hidden font-sans text-base font-normal whitespace-nowrap sm:inline sm:text-sm'>
-                {_('Back to Boighar')}
-              </span>
-            </button>
+            {onOpenBoighar && (
+              <button
+                onClick={onOpenBoighar}
+                className='btn btn-ghost text-base-content/85 h-8 min-h-8 px-2'
+                title={_('Back to Boighar')}
+                aria-label={_('Back to Boighar')}
+              >
+                {/* Icon-only below sm: the full label crowds the search box
+                    out of the header at phone widths. */}
+                <PiBookOpen role='none' className='h-5 w-5 sm:hidden' />
+                <span className='hidden font-sans text-base font-normal whitespace-nowrap sm:inline sm:text-sm'>
+                  {_('Back to Boighar')}
+                </span>
+              </button>
+            )}
             <Dropdown
               label={_('View Menu')}
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'

@@ -122,9 +122,9 @@ export const useTTSControl = ({ bookKey, onRequestHidePanel }: UseTTSControlProp
   // the preview then shows the current sentence alone (the behaviour
   // before this window existed), never an empty box.
   const [surroundingSentences, setSurroundingSentences] = useState<{
-    prev: string | null;
+    prev: string[];
     current: string;
-    next: string | null;
+    next: string[];
   } | null>(null);
   // Guards async window resolutions: a slow enumeration must not revive a
   // window for a sentence playback has already moved past or stopped on.
