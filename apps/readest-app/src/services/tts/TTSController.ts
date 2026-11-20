@@ -554,11 +554,15 @@ export class TTSController extends EventTarget {
       availableClients.push(this.ttsCustomClient);
     }
     // On web, prefer a client with a real media clock (real audio, which
-    // keeps playing in the background) over the direct-speak web client.
+    // keeps playing in the background) over the direct-speak web client —
+    // but only when signed in: Edge's real-audio transports need a session,
+    // and a signed-out reader would otherwise get a default that cannot
+    // speak (silent skips + sign-in prompt) instead of device speech.
     // On Tauri the native-first order stays untouched. A remembered
     // preference still wins, below.
     this.ttsClient =
       (!isTauriAppPlatform() &&
+        this.isAuthenticated &&
         availableClients.find((client) => client.getCapabilities().mediaClock)) ||
       availableClients[0] ||
       this.ttsWebClient;

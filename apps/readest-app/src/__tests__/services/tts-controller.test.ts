@@ -312,14 +312,17 @@ describe('TTSController', () => {
       expect(controller.ttsWebClient.init).toHaveBeenCalled();
       webDone(true);
       await ready;
-      // Edge is ready too and has a real media clock, so it is the default.
-      expect(controller.ttsClient.name).toBe('edge');
+      // Edge is ready too, but the reader is signed out, so the device
+      // client stays the default (Task 8: the real-audio default needs a
+      // session).
+      expect(controller.ttsClient.name).toBe('web');
     });
 
-    test('sets ttsClient to the first real-audio client (edge)', async () => {
+    test('sets ttsClient to the web client when signed out', async () => {
       await controller.init();
-      // Edge has a real media clock, so it is the web default.
-      expect(controller.ttsClient.name).toBe('edge');
+      // The real-audio default applies only when signed in; a signed-out
+      // reader keeps device speech.
+      expect(controller.ttsClient.name).toBe('web');
     });
 
     test('fetches voices from the web client and from Edge', async () => {
@@ -335,11 +338,12 @@ describe('TTSController', () => {
       expect(controller.ttsClient.name).toBe('web');
     });
 
-    test('falls back to the real-audio default when preferred client not found', async () => {
+    test('falls back to the web client when preferred client not found', async () => {
       vi.mocked(TTSUtils.getPreferredClient).mockReturnValue('nonexistent');
       await controller.init();
-      // first available real-audio client is Edge
-      expect(controller.ttsClient.name).toBe('edge');
+      // Signed out, so the fallback is the device client, not the real-audio
+      // default (which needs a session).
+      expect(controller.ttsClient.name).toBe('web');
     });
 
     test('also initializes native client on Android', async () => {
