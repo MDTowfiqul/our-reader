@@ -155,6 +155,12 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({ bookKey }) => {
                     }
                   }}
                 >
+                  <div
+                    className='bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-full'
+                    aria-hidden='true'
+                  >
+                    <LuMessageSquare className='size-5' />
+                  </div>
                   <div className='min-w-0 flex-1'>
                     {editingId === conversation.id ? (
                       <div
@@ -201,7 +207,7 @@ const ChatHistoryView: React.FC<ChatHistoryViewProps> = ({ bookKey }) => {
                 </div>
 
                 {editingId !== conversation.id && (
-                  <div className='flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100'>
+                  <div className='flex shrink-0 gap-0.5 transition-opacity sm:opacity-0 sm:group-hover:opacity-100'>
                     <button
                       onClick={(e) => handleStartRename(e, conversation)}
                       className='btn btn-ghost btn-xs'

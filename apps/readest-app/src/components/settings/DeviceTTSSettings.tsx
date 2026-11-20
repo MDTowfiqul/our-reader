@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useEnv } from '@/context/EnvContext';
 import { useReaderStore } from '@/store/readerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { saveViewSettings } from '@/helpers/settings';
+import { isTauriAppPlatform } from '@/services/environment';
 import { TTSUtils } from '@/services/tts/TTSUtils';
 import { BoxedList, SettingsRow, SettingsSelect } from './primitives';
 
@@ -13,18 +15,29 @@ const SPEED_MAX = 3.0;
 const SPEED_STEP = 0.05;
 
 // Settings for the device speech engine (Google Device TTS in the voice
-// picker, backed by window.speechSynthesis). The voice list is re-read
-// fresh on mount and on every voiceschanged event: Chrome on Android often
-// delivers voices only after the first call, so a list cached at first read
-// can stay empty forever. Voice choice is stored per language with the
-// same TTSUtils preference the reader's voice picker uses, so a choice made
-// here is the voice books in that language play with.
+// picker, backed by window.speechSynthesis on the web). In the Tauri app
+// the WebView's speechSynthesis reports no voices, so the panel reads the
+// native engine instead — the same source the voice picker uses — and
+// stores the choice under the native engine so the reader honours it.
+// The voice list is re-read fresh on mount and on every voiceschanged
+// event: Chrome on Android often delivers voices only after the first
+// call, so a list cached at first read can stay empty forever. Voice
+// choice is stored per language with the same TTSUtils preference the
+// reader's voice picker uses, so a choice made here is the voice books
+// in that language play with.
 const DEVICE_TTS_ENGINE = 'web-speech';
+const NATIVE_TTS_ENGINE = 'native-tts';
 const PITCH_MIN = 0;
 const PITCH_MAX = 2;
 const PITCH_STEP = 0.1;
 
-const voiceIdOf = (voice: SpeechSynthesisVoice): string => voice.voiceURI || voice.name;
+type DeviceVoice = { id: string; name: string; lang: string };
+
+const toDeviceVoice = (voice: SpeechSynthesisVoice): DeviceVoice => ({
+  id: voice.voiceURI || voice.name,
+  name: voice.name,
+  lang: voice.lang,
+});
 
 const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const _ = useTranslation();
@@ -33,29 +46,68 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
   const { settings } = useSettingsStore();
   const viewSettings = getViewSettings(bookKey) || settings.globalViewSettings;
 
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  // The native engine is the device engine inside the Tauri app.
+  const isTauri = isTauriAppPlatform();
+  const engine = isTauri ? NATIVE_TTS_ENGINE : DEVICE_TTS_ENGINE;
+
+  const [voices, setVoices] = useState<DeviceVoice[]>([]);
   const [, setVoiceTick] = useState(0);
   const [speechSupported, setSpeechSupported] = useState(true);
-  const [ttsRate, setTtsRate] = useState(viewSettings.ttsRate ?? 1.3);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [ttsRate, setTtsRate] = useState(viewSettings.ttsRate ?? 1.0);
   const [ttsPitch, setTtsPitch] = useState(viewSettings.ttsPitch ?? 1.0);
 
+  // The native engine starts asynchronously: the first call can land
+  // before the service exists and come back empty, so retry a few times
+  // before giving up and offering a manual reload.
+  const loadNativeVoices = useCallback(async () => {
+    setLoadingVoices(true);
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const result = await invoke<{ voices: DeviceVoice[] }>('plugin:native-tts|get_all_voices');
+        if (result.voices.length > 0) {
+          setVoices(result.voices);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+      setVoices([]);
+    } catch {
+      setVoices([]);
+    } finally {
+      setLoadingVoices(false);
+    }
+  }, []);
+
   useEffect(() => {
+    if (isTauri) {
+      void loadNativeVoices();
+      return;
+    }
     const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
     if (!synth) {
       setSpeechSupported(false);
       return;
     }
-    const refresh = () => setVoices([...synth.getVoices()]);
+    const refresh = () => setVoices([...synth.getVoices()].map(toDeviceVoice));
     refresh();
     synth.addEventListener('voiceschanged', refresh);
     return () => synth.removeEventListener('voiceschanged', refresh);
-  }, []);
+  }, [isTauri]);
 
   // A web app cannot download voice data itself: this only attempts the
   // Android settings intent. On any other platform it does nothing and
   // the manual-steps note stays visible as the fallback.
   const handleOpenPhoneTTSSettings = () => {
     if (typeof window === 'undefined') return;
+    if (isTauri) {
+      // An intent: URL in the WebView lands on a "Web page not
+      // available" error; the native plugin fires the intent instead.
+      void invoke('plugin:native-tts|open_tts_settings').catch(() => {
+        // No settings app to open; the note stays visible.
+      });
+      return;
+    }
     if (/Android/i.test(window.navigator.userAgent)) {
       window.location.href = 'intent:#Intent;action=android.settings.TTS_SETTINGS;end';
     }
@@ -76,7 +128,7 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         } catch {
           // Engine absent mid-load; nothing to cancel.
         }
-        setVoices([...synth.getVoices()]);
+        setVoices([...synth.getVoices()].map(toDeviceVoice));
       };
       synth.addEventListener('voiceschanged', stop, { once: true });
       synth.speak(utterance);
@@ -100,15 +152,13 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
 
   // The stored preference is per language: the selected option is the voice
   // whose id matches the preference stored for its own language.
-  const selectedVoice = voices.find(
-    (v) => TTSUtils.getPreferredVoice(DEVICE_TTS_ENGINE, v.lang) === voiceIdOf(v),
-  );
-  const selectedVoiceId = selectedVoice ? voiceIdOf(selectedVoice) : '';
+  const selectedVoice = voices.find((v) => TTSUtils.getPreferredVoice(engine, v.lang) === v.id);
+  const selectedVoiceId = selectedVoice ? selectedVoice.id : '';
 
   const handleVoiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const voice = voices.find((v) => voiceIdOf(v) === e.target.value);
+    const voice = voices.find((v) => v.id === e.target.value);
     if (!voice) return;
-    TTSUtils.setPreferredVoice(DEVICE_TTS_ENGINE, voice.lang, voiceIdOf(voice));
+    TTSUtils.setPreferredVoice(engine, voice.lang, voice.id);
     // The stored preference changed outside React state; re-render so the
     // select shows the new choice.
     setVoiceTick((t) => t + 1);
@@ -124,19 +174,34 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
         {!speechSupported || voices.length === 0 ? (
           <div className='pe-4'>
             <p className='text-base-content/65 text-sm leading-relaxed'>
-              {_(
-                'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
-              )}
+              {isTauri
+                ? loadingVoices
+                  ? _('Loading device voices…')
+                  : _('Couldn’t load the device voices.')
+                : _(
+                    'No device voices found. On Android, install voice data in Settings → System → Text-to-speech output → Google Text-to-Speech → Install voice data.',
+                  )}
             </p>
             {speechSupported && (
               <div className='flex flex-wrap gap-2'>
-                <button
-                  type='button'
-                  className='btn btn-contrast btn-sm eink-bordered mt-2'
-                  onClick={handleLoadVoices}
-                >
-                  {_('Load device voices')}
-                </button>
+                {!isTauri && (
+                  <button
+                    type='button'
+                    className='btn btn-contrast btn-sm eink-bordered mt-2'
+                    onClick={handleLoadVoices}
+                  >
+                    {_('Load device voices')}
+                  </button>
+                )}
+                {isTauri && !loadingVoices && (
+                  <button
+                    type='button'
+                    className='btn btn-contrast btn-sm eink-bordered mt-2'
+                    onClick={() => void loadNativeVoices()}
+                  >
+                    {_('Reload voices')}
+                  </button>
+                )}
                 <button
                   type='button'
                   className='btn btn-contrast btn-sm eink-bordered mt-2'
@@ -155,7 +220,7 @@ const DeviceTTSSettings: React.FC<{ bookKey: string }> = ({ bookKey }) => {
             options={[
               { value: '', label: _('System default') },
               ...voices.map((v) => ({
-                value: voiceIdOf(v),
+                value: v.id,
                 label: `${v.name} (${v.lang})`,
               })),
             ]}

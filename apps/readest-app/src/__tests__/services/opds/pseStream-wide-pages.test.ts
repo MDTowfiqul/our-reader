@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openPseStreamBook } from '@/services/opds/pseStream';
 
 vi.mock('@/services/environment', () => ({ isTauriAppPlatform: () => false }));
-vi.mock('@/services/constants', () => ({ READEST_OPDS_USER_AGENT: 'Readest' }));
+vi.mock('@/services/constants', () => ({ OUR_READER_OPDS_USER_AGENT: 'Readest' }));
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: { getState: () => ({ settings: { opdsCatalogs: [] } }) },
 }));

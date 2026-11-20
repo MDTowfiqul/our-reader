@@ -22,6 +22,7 @@ import { WebSpeechClient } from './WebSpeechClient';
 import { NativeTTSClient } from './NativeTTSClient';
 import { EdgeTTSClient } from './EdgeTTSClient';
 import { BufferedTTSClient } from './BufferedTTSClient';
+import { groupVoicesByLanguage } from './voiceGroups';
 import { createBookTTSCacheStore } from './providers/bookCacheStore';
 import { CachingProvider } from './providers/cache';
 import { ReadestVoiceProvider } from './providers/readest';
@@ -1252,7 +1253,7 @@ export class TTSController extends EventTarget {
   // cannot be enumerated or the spoken text cannot be located in it.
   async getSurroundingSentences(
     markText: string,
-  ): Promise<{ prev: string | null; current: string; next: string | null } | null> {
+  ): Promise<{ prev: string[]; current: string; next: string[] } | null> {
     if (this.narrationActive) return null;
     if (this.#ttsGranularity !== 'sentence') return null;
     const doc = this.#ttsDoc;
@@ -1323,9 +1324,9 @@ export class TTSController extends EventTarget {
     if (idx < 0) return null;
     this.#lastSentenceListIndex = idx;
     return {
-      prev: idx > 0 ? sentences[idx - 1]! : null,
+      prev: sentences.slice(Math.max(0, idx - 3), idx),
       current: markText,
-      next: idx + 1 < sentences.length ? sentences[idx + 1]! : null,
+      next: sentences.slice(idx + 1, idx + 4),
     };
   }
 
@@ -2414,7 +2415,10 @@ export class TTSController extends EventTarget {
     const ttsWebVoices = await this.ttsWebClient.getVoices(lang);
     const ttsNativeVoices = (await this.ttsNativeClient?.getVoices(lang)) ?? [];
     // Listed for every reader, the voices their plan lacks greyed out; hidden
-    // only when there is no catalog (kill switch, offline).
+    // only when there is no catalog (kill switch, offline). The picker itself
+    // reads getAllVoices, which leaves Readest out, so this group never
+    // reaches the voice picker — it stays here for the controller's own
+    // callers and its tests.
     const ttsReadestVoices =
       (await this.ttsReadestClient.getAllVoices()).length > 0
         ? (await this.ttsReadestClient.getVoices(lang)).filter((group) => group.voices.length > 0)
@@ -2446,6 +2450,52 @@ export class TTSController extends EventTarget {
       ...ttsWebVoices,
     ];
     return voicesGroups;
+  }
+
+  // Every voice, every language, grouped by language: the picker lists
+  // them under an Offline / Online section instead of one language at
+  // a time. The Readest voices are not listed here either.
+  async getAllVoices() {
+    const narrationVoices = this.narrationAvailable
+      ? await this.ttsMediaOverlayClient.getAllVoices()
+      : [];
+    const ttsCustomVoices = this.ttsCustomClient.initialized
+      ? await this.ttsCustomClient.getAllVoices()
+      : [];
+    const ttsEdgeVoices = this.ttsEdgeClient.initialized
+      ? await this.ttsEdgeClient.getAllVoices()
+      : [];
+    const ttsNativeVoices = (await this.ttsNativeClient?.getAllVoices()) ?? [];
+    const ttsWebVoices = await this.ttsWebClient.getAllVoices();
+
+    const voicesGroups = [
+      ...groupVoicesByLanguage(
+        narrationVoices,
+        'media-overlay',
+        this.ttsMediaOverlayClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsCustomVoices,
+        'custom',
+        this.ttsCustomClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsEdgeVoices,
+        'edge',
+        this.ttsEdgeClient.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsNativeVoices,
+        'native',
+        this.ttsNativeClient?.getCapabilities().worksOffline ?? false,
+      ),
+      ...groupVoicesByLanguage(
+        ttsWebVoices,
+        'web-speech',
+        this.ttsWebClient.getCapabilities().worksOffline ?? false,
+      ),
+    ];
+    return voicesGroups.filter((group) => group.voices.length > 0);
   }
 
   async setVoice(voiceId: string, lang: string) {

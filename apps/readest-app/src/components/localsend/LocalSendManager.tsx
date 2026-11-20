@@ -299,7 +299,7 @@ const LocalSendManager: React.FC = () => {
           try {
             const raw = await appService.readFile(payload.path, 'None', 'binary');
             const pack = typeof raw === 'string' ? null : await extractCollectionPack(raw);
-            if (!pack) throw new Error('Not a readable Readest pack');
+            if (!pack) throw new Error('Not a readable Our Reader pack');
             const { getGroupId, getGroupName, updateBooks } = useLibraryStore.getState();
             const importedBooks: Book[] = [];
             for (const { file: innerFile, groupName: packGroupName } of pack.books) {

@@ -164,8 +164,9 @@ const sessionToken = (claims: object) => `${encode({ alg: 'none' })}.${encode(cl
 const getCustomTranslatorsRow = () =>
   screen.getByText('Custom Translators').closest('button') as HTMLButtonElement;
 
-// Custom translators are a premium feature: free and signed-out readers see the
-// row with a Premium badge that routes to the upgrade page or sign-in.
+// Custom translators are free in the Our Reader fork: every reader opens
+// the sub-page, with no Premium badge and no routing to sign-in or the
+// plans page.
 describe('LangPanel — Custom Translators premium gate', () => {
   beforeEach(() => {
     state.token = null;
@@ -177,23 +178,25 @@ describe('LangPanel — Custom Translators premium gate', () => {
     cleanup();
   });
 
-  it('sends a signed-out reader to sign in', () => {
+  it('lets a signed-out reader open custom translators', () => {
     render(<LangPanel bookKey='book-1' onRegisterReset={vi.fn()} />);
 
-    expect(getCustomTranslatorsRow().textContent).toContain('Premium');
+    expect(getCustomTranslatorsRow().textContent).not.toContain('Premium');
     fireEvent.click(getCustomTranslatorsRow());
-    expect(state.push).toHaveBeenCalledWith(expect.stringMatching(/^\/auth\?redirect=/));
+    expect(state.push).not.toHaveBeenCalled();
+    expect(screen.getByText('Add Translator')).toBeTruthy();
   });
 
-  it('sends a free user to the plans page', () => {
+  it('lets a free user open custom translators', () => {
     state.token = sessionToken({ plan: 'free' });
     state.user = { id: 'u' };
 
     render(<LangPanel bookKey='book-1' onRegisterReset={vi.fn()} />);
 
+    expect(getCustomTranslatorsRow().textContent).not.toContain('Premium');
     fireEvent.click(getCustomTranslatorsRow());
-    expect(state.push).toHaveBeenCalledWith(expect.stringMatching(/^\/user\?redirect=/));
-    expect(screen.queryByText('Add Translator')).toBeNull();
+    expect(state.push).not.toHaveBeenCalled();
+    expect(screen.getByText('Add Translator')).toBeTruthy();
   });
 
   it('opens the sub-page for a subscriber', () => {

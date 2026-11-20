@@ -35,7 +35,7 @@ export const cloudProviderDisplayName = (kind: CloudSyncProviderKind): string =>
           ? 'OneDrive'
           : kind === 'icloud'
             ? 'iCloud'
-            : 'Readest Cloud';
+            : 'Our Reader Cloud';
 
 /**
  * The third-party backends the user has switched on, in a STABLE order that

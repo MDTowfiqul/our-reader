@@ -5,6 +5,10 @@ import { ImageResponse } from 'next/og';
 // cdn.readest.com and showed the Readest landing page in link previews.
 // Next.js serves this at /opengraph-image and picks it up automatically
 // for both openGraph and twitter metadata.
+// The Tauri build uses `output: 'export'` (static export), which requires
+// image routes to be statically configured.
+export const dynamic = 'force-static';
+
 export const size = {
   width: 1200,
   height: 630,

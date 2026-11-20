@@ -247,5 +247,16 @@ describe('TTSUtils', () => {
       expect(TTSUtils.getPreferredVoice('edge', 'en')).toBe('v1');
       expect(TTSUtils.getPreferredVoice('web', 'fr')).toBe('v2');
     });
+
+    test('pins survive across calls and ignore bad stored data', () => {
+      expect(TTSUtils.getPinnedLangs()).toEqual([]);
+      expect(TTSUtils.getPinnedVoices()).toEqual([]);
+      TTSUtils.setPinnedLangs(['bn', 'ar']);
+      TTSUtils.setPinnedVoices(['edge-bn-1', 'native-en-1']);
+      expect(TTSUtils.getPinnedLangs()).toEqual(['bn', 'ar']);
+      expect(TTSUtils.getPinnedVoices()).toEqual(['edge-bn-1', 'native-en-1']);
+      localStorage.setItem('ttsPinnedLangs', 'not json');
+      expect(TTSUtils.getPinnedLangs()).toEqual([]);
+    });
   });
 });

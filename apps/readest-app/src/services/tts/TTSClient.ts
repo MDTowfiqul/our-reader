@@ -40,6 +40,9 @@ export interface TTSCapabilities {
   // A preload synthesizes and keeps the audio, so preloading the next
   // chapter's opening pays off; engines that ignore preloads skip that work.
   preloadsAudio?: boolean;
+  // The voices work without internet (device speech, local narration).
+  // The picker groups by this first: Offline, then Online.
+  worksOffline?: boolean;
 }
 
 export interface TTSClient {

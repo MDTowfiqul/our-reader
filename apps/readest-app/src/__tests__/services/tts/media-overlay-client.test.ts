@@ -154,6 +154,7 @@ describe('MediaOverlayClient capabilities', () => {
       liveRateChange: true,
       continuousTimeline: true,
       textHighlight: true,
+      worksOffline: true,
     });
   });
 

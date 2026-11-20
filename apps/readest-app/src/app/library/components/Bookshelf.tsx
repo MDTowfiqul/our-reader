@@ -46,9 +46,7 @@ import type { BookshelfDefinition } from '@/types/bookshelf';
 import { resolveBookshelfLayout } from '@/services/bookshelves/definitions';
 import BookshelfStream, { type ShelfSection } from './BookshelfStream';
 import { eventDispatcher } from '@/utils/event';
-import { getLocalBookFilename } from '@/utils/book';
-import { MIMETYPES, EXTS } from '@/libs/document';
-import { makeSafeFilename } from '@/utils/misc';
+import { shareBookFile } from '@/utils/shareBookFile';
 import { isTauriAppPlatform } from '@/services/environment';
 import { isLocalSendEnabled } from '@/services/localsend/devicePrefs';
 import { splitLibraryOpenIds } from '@/utils/audiobook';
@@ -59,9 +57,7 @@ import Spinner from '@/components/Spinner';
 import ModalPortal from '@/components/ModalPortal';
 import BookshelfItem from './BookshelfItem';
 import SelectModeActions from './SelectModeActions';
-import ShareBookDialog from './ShareBookDialog';
 import { createCollectionPack, READEST_PACK_MIME } from '@/services/pack/packService';
-import { useAuth } from '@/context/AuthContext';
 import GroupingModal from './GroupingModal';
 import TaggingModal from './TaggingModal';
 import SetStatusAlert from './SetStatusAlert';
@@ -539,17 +535,8 @@ const Bookshelf: React.FC<BookshelfProps> = ({
   };
 
   const sendSelectedBook = async () => {
-    // "Send" hands the actual book file (epub/pdf/...) to the OS share
-    // sheet (UIActivityViewController on iOS, Intent.ACTION_SEND on
-    // Android, NSSharingServicePicker on macOS) so the user can fire it
-    // off to Mail / Messages / WeChat / AirDrop / etc. Backed by
-    // tauri-plugin-sharekit via appService.saveFile({ share: true }).
-    //
-    // This is intentionally distinct from the per-item "Share Book"
-    // context menu, which uploads the book to the readest backend and
-    // generates a public link. "Send" is offline file egress; "Share
-    // Book" is remote collaboration. They share zero infra.
-    //
+    // "Send" hands the actual book file to the OS share sheet — the
+    // same file-share the per-item "Share Book" menu now uses.
     // Linux has no system share sheet, and Windows is intentionally
     // disabled (issue #4343 — WebView2's native share UI blocks the main
     // thread waiting on cancel/complete callbacks that may never fire).
@@ -586,63 +573,7 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     setShowSelectModeActions(false);
     handleSetSelectMode(false);
 
-    try {
-      // Resolve the file the same way bookContent.resolveBookContentSource
-      // does, but via the public AppService surface (the underlying `fs`
-      // is protected): managed copy under Books/<hash>/ first, then the
-      // device-local in-place import path. Cloud-only books or remote
-      // URL books can't be shared without first downloading them.
-      const managedPath = getLocalBookFilename(book);
-      let path: string;
-      let base: 'Books' | 'None';
-      if (await appService.exists(managedPath, 'Books')) {
-        path = managedPath;
-        base = 'Books';
-      } else if (book.filePath && (await appService.exists(book.filePath, 'None'))) {
-        path = book.filePath;
-        base = 'None';
-      } else {
-        eventDispatcher.dispatch('toast', {
-          type: 'warning',
-          message: _('Book file is not available locally'),
-          timeout: 2500,
-        });
-        return;
-      }
-      const ext = EXTS[book.format] ?? 'bin';
-      const mimeType = MIMETYPES[book.format]?.[0] ?? 'application/octet-stream';
-      const baseName = makeSafeFilename(book.sourceTitle || book.title || book.hash);
-      const shareFilename = `${baseName}.${ext}`;
-
-      // Native (Tauri) only — the Share button is hidden on web because
-      // browsers can't surface a real "share to <app>" sheet for an
-      // arbitrary local file. Hand the already-on-disk file straight to
-      // the OS share sheet via `options.filePath`. Without it,
-      // saveFile() falls back to writing a temp copy under
-      // BaseDirectory.Temp, which on Android resolves to
-      // /data/local/tmp/ — the app sandbox has no write permission
-      // there and the call fails with EACCES ("failed to open file at
-      // path: /data/local/tmp/...epub Permission denied (os error
-      // 13)"). Passing the absolute path also avoids re-buffering the
-      // whole epub/pdf into memory just to have saveFile write it back
-      // to disk.
-      const absoluteFilePath = await appService.resolveFilePath(path, base);
-      // `null` content: there's nothing to write — the file already lives at
-      // `filePath`, which the native share path reads directly.
-      await appService.saveFile(shareFilename, null, {
-        share: true,
-        mimeType,
-        filePath: absoluteFilePath,
-        sharePosition,
-      });
-    } catch (err) {
-      console.error('Failed to send book file:', err);
-      eventDispatcher.dispatch('toast', {
-        type: 'error',
-        message: _('Failed to send book'),
-        timeout: 2500,
-      });
-    }
+    await shareBookFile(appService, book, _, sharePosition);
   };
 
   const sendSelectedNearby = () => {
@@ -790,30 +721,18 @@ const Bookshelf: React.FC<BookshelfProps> = ({
     };
   }, []);
 
-  const { user } = useAuth();
-  const [shareDialogBook, setShareDialogBook] = useState<Book | null>(null);
-
   useEffect(() => {
     const handleShareIntent = (event: CustomEvent) => {
       const book = (event.detail as { book?: Book } | undefined)?.book;
       if (!book) return;
-      if (!user) {
-        // Logged-out users can't share their own files; route through the
-        // login flow instead. The /auth route preserves a return path.
-        eventDispatcher.dispatch('toast', {
-          type: 'info',
-          message: _('Sign in to share books'),
-          timeout: 2500,
-        });
-        return;
-      }
-      setShareDialogBook(book);
+      // No sign-in: the book file goes straight to the OS share sheet.
+      void shareBookFile(appService, book, _);
     };
     eventDispatcher.on('show-share-dialog', handleShareIntent);
     return () => {
       eventDispatcher.off('show-share-dialog', handleShareIntent);
     };
-  }, [user, _]);
+  }, [appService, _]);
 
   // OverlayScrollbars + Virtuoso integration: Virtuoso manages its own
   // scroller; OverlayScrollbars wraps it for overlay scrollbar rendering.
@@ -1174,11 +1093,6 @@ const Bookshelf: React.FC<BookshelfProps> = ({
           onUpdateStatus={updateBooksStatus}
         />
       )}
-      <ShareBookDialog
-        isOpen={!!shareDialogBook}
-        book={shareDialogBook}
-        onClose={() => setShareDialogBook(null)}
-      />
     </div>
   );
 };

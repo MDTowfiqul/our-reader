@@ -46,7 +46,7 @@ import {
 } from './utils/opdsReq';
 import { getPublicationDetailHref, parsePublicationDocument } from './utils/opdsPublication';
 import { ImportError } from '@/services/errors';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { findBookByOPDSSources, upsertOPDSSourceMapping } from '@/services/opds/sourceMap';
 import { applyOPDSCover, getOPDSCoverHref, getOPDSImageCacheFilename } from '@/services/opds/cover';
 import { applyOPDSMetadata, getOPDSBookMetadata } from '@/services/opds/metadata';
@@ -615,7 +615,7 @@ export default function BrowserPage() {
           const useProxy = needsProxy(url);
           const downloadUrl = useProxy ? getProxiedURL(url, true, customHeaders) : url;
           const headers: Record<string, string> = {
-            'User-Agent': READEST_OPDS_USER_AGENT,
+            'User-Agent': OUR_READER_OPDS_USER_AGENT,
             Accept: '*/*',
             ...(!useProxy ? customHeaders : {}),
           };

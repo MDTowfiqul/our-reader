@@ -632,6 +632,7 @@ export class MediaOverlayClient implements TTSClient {
         id: 'media-overlay',
         name: _('Narration'),
         voices: this.#voices(),
+        offline: this.getCapabilities().worksOffline ?? false,
       },
     ];
   }
@@ -657,6 +658,8 @@ export class MediaOverlayClient implements TTSClient {
       liveRateChange: true,
       continuousTimeline: true,
       textHighlight: this.#source?.textHighlight !== false,
+      // The recording ships with the book: it plays offline.
+      worksOffline: true,
     };
   }
 

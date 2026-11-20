@@ -81,7 +81,7 @@ export default function LinkDevice() {
           <h1 className='text-xl font-semibold tracking-tight'>{_('Link a CrossPoint Reader')}</h1>
           <p className='text-base-content/70 mt-1 text-sm'>
             {_(
-              'The reader gets your Readest library, reading statistics and reading progress. Only enter a code shown on your own reader.',
+              'The reader gets your Our Reader library, reading statistics and reading progress. Only enter a code shown on your own reader.',
             )}
           </p>
         </header>

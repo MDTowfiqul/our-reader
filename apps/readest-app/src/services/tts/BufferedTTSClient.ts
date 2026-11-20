@@ -912,9 +912,11 @@ export class BufferedTTSClient implements TTSClient {
     if (this.provider.groupVoices) {
       // Each group offers the book language's voices and the multilingual ones.
       const spoken = voices.filter((v) => v.lang === MULTILINGUAL_LANG || isSameLang(v.lang, lang));
-      return this.provider
-        .groupVoices(spoken)
-        .map((group) => ({ ...group, disabled: !this.initialized }));
+      return this.provider.groupVoices(spoken).map((group) => ({
+        ...group,
+        disabled: !this.initialized,
+        offline: this.getCapabilities().worksOffline ?? false,
+      }));
     }
     // Match by primary language so the voice set stays the same across a book
     // whose sections mix region variants (e.g. en-US front matter and en-GB
@@ -930,6 +932,7 @@ export class BufferedTTSClient implements TTSClient {
           : TTSUtils.sortVoicesPreferLocaleFunc(locale),
       ),
       disabled: !this.initialized || filteredVoices.length === 0,
+      offline: this.getCapabilities().worksOffline ?? false,
     };
 
     return [voicesGroup];
@@ -953,6 +956,8 @@ export class BufferedTTSClient implements TTSClient {
       scheduledGaps: !(this.#player instanceof NativeAudioPlayer),
       windowedPrefetch: !!this.provider.prefetch,
       preloadsAudio: true,
+      // Server voices: the audio is fetched from the provider each time.
+      worksOffline: false,
     };
   }
 

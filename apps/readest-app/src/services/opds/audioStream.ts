@@ -29,7 +29,7 @@ import {
   probeAuth,
   withOriginSuppressed,
 } from '@/app/opds/utils/opdsReq';
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { isTauriAppPlatform } from '@/services/environment';
 import { useSettingsStore } from '@/store/settingsStore';
 import { normalizeCustomHeaders } from '@/utils/customHeaders';
@@ -72,7 +72,7 @@ const originOf = (url: string): string => {
  * nothing.
  */
 const trackHeaders = (href: string, auth: OpdsAudioAuth): Record<string, string> => {
-  const base = { 'User-Agent': READEST_OPDS_USER_AGENT };
+  const base = { 'User-Agent': OUR_READER_OPDS_USER_AGENT };
   if (auth.origin && originOf(href) !== auth.origin) {
     if (needsAudioAuth(auth)) {
       console.warn('[OPDS] not sending catalog credentials to', originOf(href));

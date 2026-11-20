@@ -108,8 +108,8 @@ import TTSPlayerSheet from '@/app/reader/components/tts/TTSPlayerSheet';
 const waitFor = <T,>(callback: () => T | Promise<T>) =>
   waitForWithOptions(callback, { interval: 1 });
 
-// The device group stands in for what the picker lists after Edge TTS
-// was removed from it (see TTSController.getVoices).
+// The device group stands in for what the picker lists. It carries no
+// `offline` flag, so the builder treats it as online.
 const voiceGroups = [
   {
     id: 'web-speech-api',
@@ -140,7 +140,7 @@ const makeProps = (overrides: Record<string, unknown> = {}) => ({
   onGetLyricLoopRange: vi.fn().mockReturnValue(null),
   onSetRate: vi.fn(),
   clientsReady: true,
-  onGetVoices: vi.fn().mockResolvedValue(voiceGroups),
+  onGetAllVoices: vi.fn().mockResolvedValue(voiceGroups),
   onSetVoice: vi.fn(),
   onGetVoiceId: vi.fn().mockReturnValue('ava'),
   onSelectTimeout: vi.fn(),
@@ -182,6 +182,9 @@ describe('TTSPlayerSheet', () => {
     viewSettings['ttsRate'] = 1.0;
     viewSettings['ttsSentenceGap'] = 0.15;
     viewSettings['isEink'] = false;
+    // Pins persist in localStorage: clear what the pin tests write, or a
+    // Pinned section set by one test leaks into the next.
+    localStorage.clear();
     // Shared fixture object: clear what individual tests write, or a value set
     // by one test leaks into the next.
     delete viewSettings['ttsVoice'];
@@ -203,17 +206,18 @@ describe('TTSPlayerSheet', () => {
   test('opened while the clients initialize, it loads the voices once they are ready', async () => {
     const props = makeProps({
       clientsReady: false,
-      onGetVoices: vi.fn().mockResolvedValue([]),
+      onGetAllVoices: vi.fn().mockResolvedValue([]),
       onGetVoiceId: vi.fn().mockReturnValue(''),
     });
     const { rerender } = render(<TTSPlayerSheet {...props} />);
     // Transport waits for the clients: a pause now would be undone by startup.
     expect((screen.getByLabelText('Previous Paragraph') as HTMLButtonElement).disabled).toBe(true);
-    props.onGetVoices.mockResolvedValue(voiceGroups);
+    props.onGetAllVoices.mockResolvedValue(voiceGroups);
     props.onGetVoiceId.mockReturnValue('ava');
     rerender(<TTSPlayerSheet {...props} clientsReady />);
     expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
-    expect(props.onGetVoices).toHaveBeenCalledTimes(2);
+    // One fetch per effect run (before the clients are ready, and after).
+    expect(props.onGetAllVoices).toHaveBeenCalledTimes(2);
     expect((screen.getByLabelText('Previous Paragraph') as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -221,7 +225,7 @@ describe('TTSPlayerSheet', () => {
     let answerEarly: (groups: typeof voiceGroups) => void = () => {};
     const props = makeProps({
       clientsReady: false,
-      onGetVoices: vi
+      onGetAllVoices: vi
         .fn()
         .mockImplementationOnce(() => new Promise((r) => (answerEarly = r)))
         .mockResolvedValue(voiceGroups),
@@ -662,13 +666,13 @@ describe('TTSPlayerSheet', () => {
 
   test('empty voice list explains why and offers device settings', async () => {
     const props = makeProps({
-      onGetVoices: vi.fn().mockResolvedValue([]),
+      onGetAllVoices: vi.fn().mockResolvedValue([]),
       onGetVoiceId: vi.fn().mockReturnValue(''),
     });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
     await waitFor(() => screen.getByText('Open phone TTS settings'));
-    expect(screen.getByText(/no voice for English is installed/i)).toBeTruthy();
+    expect(screen.getByText(/No voices found/i)).toBeTruthy();
     fireEvent.click(screen.getAllByText('Device TTS settings')[1]!);
     expect(setRequestedPanel).toHaveBeenCalledWith('TTS');
     expect(setSettingsDialogOpen).toHaveBeenCalledWith(true);
@@ -723,7 +727,7 @@ describe('TTSPlayerSheet', () => {
   test('offline audio row is hidden while the book own narration is playing', async () => {
     const props = makeProps({
       downloads: makeDownloads(),
-      onGetVoices: vi.fn().mockResolvedValue(narrationGroups),
+      onGetAllVoices: vi.fn().mockResolvedValue(narrationGroups),
       onGetVoiceId: vi.fn().mockReturnValue('media-overlay'),
     });
     render(<TTSPlayerSheet {...props} />);
@@ -737,28 +741,30 @@ describe('TTSPlayerSheet', () => {
     expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
   });
 
-  test('now reading preview shows faded previous and next sentences around the current one', () => {
+  test('now reading preview shows several faded lines before and after the current one', () => {
     const props = makeProps({
       currentSentenceText: 'This sentence is being read aloud.',
       surroundingSentences: {
-        prev: 'The sentence before it.',
+        prev: ['Two sentences before.', 'The sentence before it.'],
         current: 'This sentence is being read aloud.',
-        next: 'The sentence after it.',
+        next: ['The sentence after it.', 'Two sentences after.'],
       },
     });
     render(<TTSPlayerSheet {...props} />);
+    expect(screen.getByText('Two sentences before.')).toBeTruthy();
     expect(screen.getByText('The sentence before it.')).toBeTruthy();
     expect(screen.getByText('This sentence is being read aloud.')).toBeTruthy();
     expect(screen.getByText('The sentence after it.')).toBeTruthy();
+    expect(screen.getByText('Two sentences after.')).toBeTruthy();
   });
 
   test('now reading preview omits missing neighbours at chapter boundaries', () => {
     const props = makeProps({
       currentSentenceText: 'The very first sentence.',
       surroundingSentences: {
-        prev: null,
+        prev: [],
         current: 'The very first sentence.',
-        next: 'The second sentence.',
+        next: ['The second sentence.'],
       },
     });
     render(<TTSPlayerSheet {...props} />);
@@ -781,12 +787,57 @@ describe('TTSPlayerSheet', () => {
     expect(screen.queryByText('This sentence is being read aloud.')).toBeNull();
   });
 
-  test('choosing the narrator records the per-book narration preference', async () => {
-    const props = makeProps({ onGetVoices: vi.fn().mockResolvedValue(narrationGroups) });
+  test('voice picker groups voices by language under an Online section', async () => {
+    const props = makeProps({});
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
-    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /Narration/ })));
-    fireEvent.click(screen.getByText('Jane Reader'));
+    expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
+    expect(screen.getByText('Online — needs internet')).toBeTruthy();
+    expect(screen.getByText('English: 2 voices')).toBeTruthy();
+    expect(screen.getByText('Guy')).toBeTruthy();
+  });
+
+  test('voice picker lists every language at once for a Bengali book', async () => {
+    const groups = [
+      {
+        id: 'edge-bn',
+        name: 'Bengali',
+        voices: [{ id: 'nabanita', name: 'Nabanita', lang: 'bn-BD', disabled: false }],
+        offline: false,
+      },
+      {
+        id: 'edge-en',
+        name: 'English',
+        voices: [{ id: 'aria', name: 'Aria', lang: 'en-US', disabled: false }],
+        offline: false,
+      },
+      {
+        id: 'edge-ar',
+        name: 'Arabic',
+        voices: [{ id: 'zariyah', name: 'Zariyah', lang: 'ar-SA', disabled: false }],
+        offline: false,
+      },
+    ];
+    const props = makeProps({
+      ttsLang: 'bn',
+      onGetAllVoices: vi.fn().mockResolvedValue(groups),
+    });
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    expect(await waitFor(() => screen.getByText('Online — needs internet'))).toBeTruthy();
+    // The first language row (Arabic) opens by default.
+    expect(await waitFor(() => screen.getByText('Zariyah'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Bengali' }));
+    expect(screen.getByText('Nabanita')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+    expect(screen.getByText('Aria')).toBeTruthy();
+  });
+
+  test('choosing the narrator records the per-book narration preference', async () => {
+    const props = makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(narrationGroups) });
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    fireEvent.click(await waitFor(() => screen.getByText('Jane Reader')));
 
     expect(props.onSetVoice).toHaveBeenCalledWith('media-overlay', 'en');
     expect(viewSettings['ttsVoice']).toBe('media-overlay');
@@ -794,7 +845,7 @@ describe('TTSPlayerSheet', () => {
   });
 
   test('choosing a synthetic voice opts this book out of its narration', async () => {
-    const props = makeProps({ onGetVoices: vi.fn().mockResolvedValue(narrationGroups) });
+    const props = makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(narrationGroups) });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
     fireEvent.click(await waitFor(() => screen.getByText('Guy')));
@@ -817,7 +868,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           { id: 'kokoro:zf_001', name: 'Zifang', lang: 'zh-CN', tier: 'plus' as const },
           { id: 'omnivoice:xiaoyu', name: 'Xiaoyu', lang: 'zh-CN', tier: 'pro' as const },
@@ -825,13 +876,17 @@ describe('TTSPlayerSheet', () => {
       },
       ...voiceGroups,
     ];
-    render(<TTSPlayerSheet {...makeProps({ onGetVoices: vi.fn().mockResolvedValue(groups) })} />);
+    render(
+      <TTSPlayerSheet {...makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(groups) })} />,
+    );
     fireEvent.click(screen.getByLabelText('Voice'));
-    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /Readest Voice/ })));
+    fireEvent.click(await waitFor(() => screen.getByRole('button', { name: 'Chinese: 2 voices' })));
     const row = (name: string) => screen.getByText(name).closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).textContent).toBe('XiaoyuPro');
     expect(row('Zifang').textContent).toBe('ZifangPlus');
-    fireEvent.click(screen.getByRole('button', { name: /Google Device TTS/ }));
+    // A folded row holding the voice in use names it after the count
+    // ("English: 2 voicesAva"), so match the count part, not the whole name.
+    fireEvent.click(screen.getByRole('button', { name: /English: 2 voices/ }));
     expect(row('Guy').textContent).toBe('Guy');
   });
 
@@ -839,7 +894,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'omnivoice:xiaoyu',
@@ -863,12 +918,14 @@ describe('TTSPlayerSheet', () => {
         ],
       },
     ];
-    render(<TTSPlayerSheet {...makeProps({ onGetVoices: vi.fn().mockResolvedValue(groups) })} />);
+    render(
+      <TTSPlayerSheet {...makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(groups) })} />,
+    );
     fireEvent.click(screen.getByLabelText('Voice'));
     const row = (name: string) => screen.getAllByText(name).at(-1)!.closest('button')!;
     expect((await waitFor(() => row('Xiaoyu'))).innerHTML).toContain('text-base-content/40');
     expect(screen.getByText('Pro').className).toContain('ms-auto');
-    fireEvent.click(screen.getByRole('button', { name: /Google Device TTS/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
     expect(row('Ava').textContent).toBe('AvaMultilingual');
     expect(screen.getByText('Multilingual').className).toContain('ms-auto');
   });
@@ -879,13 +936,13 @@ describe('TTSPlayerSheet', () => {
       ...voiceGroups,
     ];
     const props = makeProps({
-      onGetVoices: vi.fn().mockResolvedValue(groups),
+      onGetAllVoices: vi.fn().mockResolvedValue(groups),
       onGetVoiceId: vi.fn().mockReturnValue('guy'),
     });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
-    const kokoro = await waitFor(() => screen.getByRole('button', { name: /Kokoro/ }));
-    const device = screen.getByRole('button', { name: /Google Device TTS/ });
+    const kokoro = await waitFor(() => screen.getByRole('button', { name: 'Multiple languages' }));
+    const device = screen.getByRole('button', { name: 'English: 2 voices' });
     // The group of the voice in use opens, and only it.
     expect([kokoro, device].map((h) => h.getAttribute('aria-expanded'))).toEqual(['false', 'true']);
     expect(screen.getByText('Guy')).toBeTruthy();
@@ -912,11 +969,41 @@ describe('TTSPlayerSheet', () => {
     expect(kokoro.className).not.toContain('font-semibold');
   });
 
+  test('pinning a language keeps it at the top in a Pinned section', async () => {
+    const props = makeProps({});
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Pin English' }));
+    expect(screen.getByText('Pinned')).toBeTruthy();
+    expect(screen.getByText('Ava')).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('ttsPinnedLangs') || '[]')).toEqual(['en']);
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin English' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('ttsPinnedLangs') || '[]')).toEqual([]);
+  });
+
+  test('pinning a voice keeps it at the top in a Pinned section', async () => {
+    const props = makeProps({});
+    render(<TTSPlayerSheet {...props} />);
+    fireEvent.click(screen.getByLabelText('Voice'));
+    expect(await waitFor(() => screen.getByText('Ava'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Pin Ava' }));
+    expect(screen.getByText('Pinned')).toBeTruthy();
+    expect(screen.getByText('Ava')).toBeTruthy();
+    // One voice left in English, so its row shows just the language name.
+    expect(screen.getByRole('button', { name: 'English' })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('ttsPinnedVoices') || '[]')).toEqual(['ava']);
+    fireEvent.click(screen.getByRole('button', { name: 'Unpin Ava' }));
+    expect(screen.queryByText('Pinned')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('ttsPinnedVoices') || '[]')).toEqual([]);
+  });
+
   test('a Readest voice the plan lacks sends the reader to upgrade', async () => {
     const groups = [
       {
         id: 'readest-tts',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'omnivoice:clara',
@@ -928,7 +1015,7 @@ describe('TTSPlayerSheet', () => {
         ],
       },
     ];
-    const props = makeProps({ onGetVoices: vi.fn().mockResolvedValue(groups) });
+    const props = makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(groups) });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /^ClaraPro$/ })));
@@ -942,7 +1029,7 @@ describe('TTSPlayerSheet', () => {
     const groups = [
       {
         id: 'readest-tts',
-        name: 'Readest Voice',
+        name: 'Our Reader Voice',
         voices: [
           {
             id: 'kokoro:af_heart',
@@ -954,7 +1041,7 @@ describe('TTSPlayerSheet', () => {
         ],
       },
     ];
-    const props = makeProps({ onGetVoices: vi.fn().mockResolvedValue(groups) });
+    const props = makeProps({ onGetAllVoices: vi.fn().mockResolvedValue(groups) });
     render(<TTSPlayerSheet {...props} />);
     fireEvent.click(screen.getByLabelText('Voice'));
     fireEvent.click(await waitFor(() => screen.getByRole('button', { name: /^HeartPlus$/ })));

@@ -67,10 +67,12 @@ import {
   DOWNLOAD_READEST_URL,
   READEST_WEB_BASE_URL,
   READEST_NODE_BASE_URL,
-  READEST_UPDATER_FILE,
-  READEST_CHANGELOG_FILE,
+  OUR_READER_GITHUB_REPO,
+  OUR_READER_RELEASES_LATEST_API_URL,
+  OUR_READER_RELEASES_URL,
+  OUR_READER_RELEASE_APK_ASSET_NAME,
   READEST_PUBLIC_STORAGE_BASE_URL,
-  READEST_OPDS_USER_AGENT,
+  OUR_READER_OPDS_USER_AGENT,
   SYNC_PROGRESS_INTERVAL_SEC,
   SYNC_NOTES_INTERVAL_SEC,
   SYNC_BOOKS_INTERVAL_SEC,
@@ -899,23 +901,33 @@ describe('services/constants', () => {
       expect(READEST_NODE_BASE_URL).toMatch(/^https:\/\//);
     });
 
-    it('READEST_UPDATER_FILE is a URL ending with .json', () => {
-      expect(READEST_UPDATER_FILE).toMatch(/^https:\/\//);
-      expect(READEST_UPDATER_FILE).toMatch(/\.json$/);
+    it('OUR_READER_RELEASES_LATEST_API_URL points at OUR GitHub releases API', () => {
+      expect(OUR_READER_RELEASES_LATEST_API_URL).toBe(
+        'https://api.github.com/repos/MDTowfiqul/our-reader/releases/latest',
+      );
     });
 
-    it('READEST_CHANGELOG_FILE is a URL ending with .json', () => {
-      expect(READEST_CHANGELOG_FILE).toMatch(/^https:\/\//);
-      expect(READEST_CHANGELOG_FILE).toMatch(/\.json$/);
+    it('OUR_READER_RELEASES_URL points at OUR GitHub releases page', () => {
+      expect(OUR_READER_RELEASES_URL).toBe(
+        'https://github.com/MDTowfiqul/our-reader/releases/latest',
+      );
+    });
+
+    it('OUR_READER_RELEASE_APK_ASSET_NAME is the release APK asset', () => {
+      expect(OUR_READER_RELEASE_APK_ASSET_NAME).toBe('our-reader-release-apk-arm64.apk');
+    });
+
+    it('OUR_READER_GITHUB_REPO is OUR repo', () => {
+      expect(OUR_READER_GITHUB_REPO).toBe('MDTowfiqul/our-reader');
     });
 
     it('READEST_PUBLIC_STORAGE_BASE_URL is a valid URL', () => {
       expect(READEST_PUBLIC_STORAGE_BASE_URL).toMatch(/^https:\/\//);
     });
 
-    it('READEST_OPDS_USER_AGENT is a non-empty string', () => {
-      expect(typeof READEST_OPDS_USER_AGENT).toBe('string');
-      expect(READEST_OPDS_USER_AGENT.length).toBeGreaterThan(0);
+    it('OUR_READER_OPDS_USER_AGENT is a non-empty string', () => {
+      expect(typeof OUR_READER_OPDS_USER_AGENT).toBe('string');
+      expect(OUR_READER_OPDS_USER_AGENT.length).toBeGreaterThan(0);
     });
   });
 

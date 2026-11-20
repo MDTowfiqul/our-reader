@@ -464,7 +464,7 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           kind: 'builtin',
           disabled: !contextTranslator,
           reason: !hasPremium
-            ? _('Requires Readest Premium.')
+            ? _('Requires Our Reader Premium.')
             : !contextTranslator
               ? _('Add an OpenAI-compatible translator in Custom Translators to use it.')
               : undefined,

@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/environment', () => ({ isTauriAppPlatform: () => false }));
-vi.mock('@/services/constants', () => ({ READEST_OPDS_USER_AGENT: 'Readest' }));
+vi.mock('@/services/constants', () => ({ OUR_READER_OPDS_USER_AGENT: 'Readest' }));
 vi.mock('@/store/settingsStore', () => ({
   useSettingsStore: { getState: () => ({ settings: { opdsCatalogs: h.catalogs } }) },
 }));

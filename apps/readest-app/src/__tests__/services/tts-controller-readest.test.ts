@@ -250,7 +250,7 @@ describe('voices', () => {
     h.customInit = false;
     await controller.init();
     vi.mocked(readest().getVoices).mockResolvedValue([
-      { id: 'readest-tts', name: 'Readest Voice', voices: READEST_VOICES },
+      { id: 'readest-tts', name: 'Our Reader Voice', voices: READEST_VOICES },
     ]);
     const groups = await controller.getVoices('en');
     expect(groups.map((g) => g.id)).toEqual(['readest-tts']);
@@ -262,11 +262,21 @@ describe('voices', () => {
     await controller.init();
     const locked = READEST_VOICES.map((voice) => ({ ...voice, disabled: true }));
     vi.mocked(readest().getVoices).mockResolvedValue([
-      { id: 'readest-tts', name: 'Readest Voice', voices: locked, disabled: true },
+      { id: 'readest-tts', name: 'Our Reader Voice', voices: locked, disabled: true },
     ]);
     const groups = await controller.getVoices('en');
     expect(groups.find((g) => g.id === 'readest-tts')?.voices).toEqual(locked);
     expect(h.warmup).not.toHaveBeenCalled();
+  });
+
+  test('lists every language at once, grouped by language and online/offline', async () => {
+    await controller.init();
+    const groups = await controller.getAllVoices();
+    expect(groups.map((g) => g.id)).toEqual(['custom-en', 'custom-mul', 'edge-en']);
+    expect(groups.every((g) => g.offline === false)).toBe(true);
+    expect(groups.find((g) => g.id === 'edge-en')?.voices).toEqual([
+      { id: 'en-US-AriaNeural', name: 'Aria', lang: 'en-US' },
+    ]);
   });
 });
 
@@ -299,7 +309,7 @@ describe('book language', () => {
   test('the picker hides an empty Readest group', async () => {
     await controller.init();
     vi.mocked(readest().getVoices).mockResolvedValue([
-      { id: 'readest-tts', name: 'Readest Voice', voices: [], disabled: true },
+      { id: 'readest-tts', name: 'Our Reader Voice', voices: [], disabled: true },
     ]);
     const groups = await controller.getVoices('de');
     expect(groups.map((g) => g.id)).not.toContain('readest-tts');
@@ -378,7 +388,7 @@ describe('custom TTS services', () => {
   test('list their groups right after narration, for any language', async () => {
     await controller.init();
     vi.mocked(readest().getVoices).mockResolvedValue([
-      { id: 'readest-tts', name: 'Readest Voice', voices: READEST_VOICES },
+      { id: 'readest-tts', name: 'Our Reader Voice', voices: READEST_VOICES },
     ]);
     const groups = await controller.getVoices('de');
     expect(groups.map((g) => g.id)).toEqual(['custom-tts:svc', 'readest-tts']);

@@ -3,6 +3,8 @@ import { TTSVoice } from './types';
 export class TTSUtils {
   private static readonly LOCAL_STORAGE_KEY = 'ttsPreferredVoices';
   private static readonly PREFERRED_CLIENT_KEY = 'preferredClient';
+  private static readonly PINNED_LANGS_KEY = 'ttsPinnedLangs';
+  private static readonly PINNED_VOICES_KEY = 'ttsPinnedVoices';
 
   private static normalizeLanguage(language: string): string {
     if (!language) return 'n/a';
@@ -33,6 +35,35 @@ export class TTSUtils {
     const preferences = this.getPreferences();
     const lang = this.normalizeLanguage(language);
     return preferences[`${engine}-${lang}`] || null;
+  }
+
+  // Pinned languages and voices stay at the top of the voice picker, in
+  // a Pinned section. Stored as plain id lists, next to the preferred
+  // voice, so they survive app restarts.
+  static getPinnedLangs(): string[] {
+    return this.getPinned(this.PINNED_LANGS_KEY);
+  }
+
+  static setPinnedLangs(langs: string[]): void {
+    localStorage.setItem(this.PINNED_LANGS_KEY, JSON.stringify(langs));
+  }
+
+  static getPinnedVoices(): string[] {
+    return this.getPinned(this.PINNED_VOICES_KEY);
+  }
+
+  static setPinnedVoices(ids: string[]): void {
+    localStorage.setItem(this.PINNED_VOICES_KEY, JSON.stringify(ids));
+  }
+
+  private static getPinned(key: string): string[] {
+    try {
+      const stored = localStorage.getItem(key);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
   }
 
   private static getPreferences(): Record<string, string> {

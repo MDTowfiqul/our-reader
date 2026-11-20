@@ -24,25 +24,15 @@ describe('getCustomizationPurchased', () => {
   });
 });
 
+// Our Reader fork: every feature is free, regardless of plan or purchase.
+// The gate functions are kept (call sites unchanged) and now always allow.
 describe('isCustomizationAllowed', () => {
-  it('allows an explicit purchase on any plan', () => {
+  it('allows every plan, with or without a purchase', () => {
+    expect(isCustomizationAllowed('free', false)).toBe(true);
     expect(isCustomizationAllowed('free', true)).toBe(true);
-  });
-
-  it('allows subscription tiers without a separate purchase', () => {
     expect(isCustomizationAllowed('plus', false)).toBe(true);
     expect(isCustomizationAllowed('pro', false)).toBe(true);
-  });
-
-  // `getUserProfilePlan` reports 'purchase' for anyone holding ANY one-time
-  // purchase, which is how a storage add-on presents. Treating that as
-  // entitlement would hand Full Customization to every storage buyer.
-  it('does not treat a storage-only buyer as entitled', () => {
-    expect(isCustomizationAllowed('purchase', false)).toBe(false);
-  });
-
-  it('denies a free user who has not bought it', () => {
-    expect(isCustomizationAllowed('free', false)).toBe(false);
+    expect(isCustomizationAllowed('purchase', false)).toBe(true);
   });
 });
 
@@ -76,9 +66,9 @@ describe('self-hosted deployments', () => {
   });
 });
 
-// Custom translators (the user's own LLM endpoint or DeepL key) are premium.
-// The reader decides from the session token alone, so a signed-out reader is
-// locked unless the deployment is self-hosted.
+// Custom translators (the user's own LLM endpoint or DeepL key) are free in
+// the fork, like every other premium feature. The reader decides from the
+// session token alone, so a signed-out reader is a free reader: allowed.
 describe('isCustomTranslatorAllowed', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -88,23 +78,16 @@ describe('isCustomTranslatorAllowed', () => {
     expect(isCustomTranslatorAllowed(mockToken({ plan: 'plus' }))).toBe(true);
   });
 
-  it('allows a free user who bought Full Customization', () => {
+  it('allows a free user, with or without a purchase', () => {
     expect(isCustomTranslatorAllowed(mockToken({ customization_purchased: true }))).toBe(true);
-  });
-
-  it('denies a free user and a storage-only buyer', () => {
-    expect(isCustomTranslatorAllowed(mockToken({ plan: 'free' }))).toBe(false);
+    expect(isCustomTranslatorAllowed(mockToken({ plan: 'free' }))).toBe(true);
     expect(
       isCustomTranslatorAllowed(mockToken({ plan: 'free', storage_purchased_bytes: 1e9 })),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it('denies a signed-out reader', () => {
-    expect(isCustomTranslatorAllowed(null)).toBe(false);
-  });
-
-  it('allows a signed-out reader on a self-hosted deployment', () => {
-    vi.stubEnv('NEXT_PUBLIC_SELF_HOSTED', 'true');
+  it('allows a signed-out reader', () => {
     expect(isCustomTranslatorAllowed(null)).toBe(true);
+    expect(isCustomTranslatorAllowed(undefined)).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { LuSend } from 'react-icons/lu';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -15,7 +16,6 @@ import {
   retrievePassages,
   type TocEntry,
 } from '@/services/ai/bookRetrieval';
-import { Button } from '@/components/ui/button';
 import { Loader2Icon } from 'lucide-react';
 
 /**
@@ -49,6 +49,12 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Like any chat app, the latest message stays in view.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView();
+  }, [messages, isLoading]);
 
   const bookTitle = bookData?.book?.title || 'Unknown';
   const authorName = bookData?.book?.author || '';
@@ -129,38 +135,41 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
   }
 
   return (
-    <div className='flex h-full flex-col gap-3 overflow-y-auto p-4'>
-      <p className='text-muted-foreground text-xs'>
+    <div className='flex h-full flex-col gap-3 p-4'>
+      <p className='text-muted-foreground shrink-0 text-xs'>
         {_('Chatting with this book — answers come from anywhere in the book.')}
       </p>
-      <div className='flex flex-1 flex-col gap-3'>
+      <div className='flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto'>
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-xl px-3 py-2 text-sm leading-relaxed ${
+            className={`eink-bordered max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
               m.role === 'user'
-                ? 'not-eink:bg-base-200 eink-bordered self-end max-w-[85%]'
-                : 'self-start w-full'
+                ? 'not-eink:bg-primary/10 self-end rounded-br-md'
+                : 'not-eink:bg-base-200 self-start rounded-bl-md'
             }`}
           >
             <p className='whitespace-pre-wrap'>{m.content}</p>
           </div>
         ))}
         {isLoading && (
-          <p className='text-muted-foreground flex items-center gap-2 text-xs'>
-            <Loader2Icon className='size-3.5 animate-spin' />
-            {_('Thinking…')}
-          </p>
+          <div className='eink-bordered not-eink:bg-base-200 max-w-[85%] self-start rounded-2xl rounded-bl-md px-3 py-2'>
+            <p className='text-muted-foreground flex items-center gap-2 text-xs'>
+              <Loader2Icon className='size-3.5 animate-spin' />
+              {_('Thinking…')}
+            </p>
+          </div>
         )}
+        <div ref={bottomRef} />
       </div>
       {messages.length > 0 && (
-        <p className='text-muted-foreground text-xs italic'>{SUMMARY_DISCLAIMER}</p>
+        <p className='text-muted-foreground shrink-0 text-xs italic'>{SUMMARY_DISCLAIMER}</p>
       )}
-      {error && <p className='text-error text-xs'>{error}</p>}
-      <div className='flex gap-2'>
+      {error && <p className='text-error shrink-0 text-xs'>{error}</p>}
+      <div className='flex shrink-0 items-end gap-2'>
         <input
           type='text'
-          className='input input-sm eink-bordered flex-1'
+          className='input input-sm eink-bordered min-w-0 flex-1 rounded-full'
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -168,9 +177,15 @@ const BookChat: React.FC<BookChatProps> = ({ bookKey }) => {
           }}
           placeholder={_('Ask the book anything…')}
         />
-        <Button onClick={() => void handleSend()} disabled={isLoading || !input.trim()} size='sm'>
-          {_('Send')}
-        </Button>
+        <button
+          type='button'
+          onClick={() => void handleSend()}
+          disabled={isLoading || !input.trim()}
+          aria-label={_('Send')}
+          className='bg-base-content text-base-100 flex size-9 shrink-0 items-center justify-center rounded-full transition-opacity disabled:opacity-40'
+        >
+          <LuSend size={16} />
+        </button>
       </div>
     </div>
   );

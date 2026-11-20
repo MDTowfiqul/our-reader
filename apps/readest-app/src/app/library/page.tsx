@@ -1569,7 +1569,7 @@ const LibraryPageContent = ({ searchParams }: { searchParams: ReadonlyURLSearchP
         type: 'warning',
         timeout: 6000,
         message: _(
-          'iOS doesn\'t allow importing the "On My iPhone" root. Open it and pick a specific subfolder (e.g. Readest, Downloads), then try again.',
+          'iOS doesn\'t allow importing the "On My iPhone" root. Open it and pick a specific subfolder (e.g. Our Reader, Downloads), then try again.',
         ),
       });
       return false;

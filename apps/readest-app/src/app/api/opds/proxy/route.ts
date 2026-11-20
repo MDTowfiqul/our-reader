@@ -1,4 +1,4 @@
-import { READEST_OPDS_USER_AGENT } from '@/services/constants';
+import { OUR_READER_OPDS_USER_AGENT } from '@/services/constants';
 import { NextRequest, NextResponse } from 'next/server';
 import { deserializeCustomHeaders } from '@/utils/customHeaders';
 import { isBlockedHost } from '@/utils/network';
@@ -80,7 +80,7 @@ async function fetchFollowingRedirects(
         // Custom catalog headers can contain secrets too. Never restore them
         // if a later redirect returns to the original origin.
         headers = new Headers({
-          'User-Agent': READEST_OPDS_USER_AGENT,
+          'User-Agent': OUR_READER_OPDS_USER_AGENT,
           Accept: 'application/atom+xml, application/xml, text/xml, application/json, */*',
         });
       }
@@ -146,7 +146,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'HEAD') {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     const headers = new Headers({
-      'User-Agent': READEST_OPDS_USER_AGENT,
+      'User-Agent': OUR_READER_OPDS_USER_AGENT,
       Accept: 'application/atom+xml, application/xml, text/xml, application/json, */*',
     });
 
