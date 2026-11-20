@@ -37,48 +37,63 @@ code changes, no web changes. Separate PR from PR #6.
   pass a fake controller {appService:{isAndroidApp}} for Android cases):
   preload invokes + returns at once; second preload of same mark no-ops;
   live speak of queued mark attaches with no second invoke and yields its
-  end event; live speak of unqueued mark invokes; handover stop keeps the map
-  on Android (next live speak attaches) and clears it on iOS; real stop
-  clears the map. Update the 2 existing stop tests (invoke now carries
-  {payload:{handover:false}}).
-- RED in CI, then GREEN. Watch both shards.
+  end event; live speak of unqueued mark invokes; handover stop is a no-op on
+  Android (no stop invoke; next live speak attaches) and clears the map on
+  iOS; real stop clears the map; fresh live speak of an unqueued mark flushes
+  previously queued marks on Android (next live speak of one invokes fresh).
+  The stop invoke keeps its no-arg form.
+- Status 2026-11-20 ~11:30: implementation + 9 tests written locally (not
+  yet pushed). Local gates pass (esbuild transpile, Biome format + lint).
+  RED in CI, then GREEN. Watch both shards.
 
-### B. Rust — StopArgs plumbing
-- models.rs: StopArgs {handover: bool}; commands.rs stop(payload: StopArgs);
-  mobile.rs stop forwards it; desktop.rs stub takes it (unused). lib.rs
-  trait if it declares stop. No behaviour change elsewhere.
-
-### C. Kotlin service — MediaPlaybackService.kt (live engine + list)
+### B. Kotlin service — MediaPlaybackService.kt (live engine + list)
 - Live engine on applicationContext (cold pattern: SPOKEN_MEDIA_ATTRIBUTES,
   onDone chaining, generation guard) + ArrayDeque<LiveSegment(utteranceId,
-  text)> + liveCurrent/livePaused. Companion entry points (in-process, never
-  startService): enqueueLive, speakLiveNow (flush list + speak), stopLive
-  (handover: cut current only, keep list; else clear list + stop), pauseLive,
-  resumeLive (re-speak current), setLiveRate/Pitch/Voice, ensureLiveTts,
-  getLiveVoices. Listener emits tts_events via the plugin trigger
-  (boundary on start, end on done, error on error) + advances the list.
+  text)> + liveCurrent/livePausedSegment. Companion entry points (in-process,
+  never startService): ensureService, ensureLive, drainPendingLiveSegments,
+  enqueueLive, speakLiveNow (flush list + speak), stopLive (clear-all, as
+  today — handover is a client-side no-op, the service needs no flag),
+  pauseLive, resumeLive (re-speak paused segment), setLiveRate/Pitch/Voice,
+  getLiveVoices, isLiveTtsReady. Listener emits tts_events via the plugin
+  trigger (boundary on start, end on done, error on error) + advances the
+  list. Sentences enqueued before the service exists are held in
+  pendingLiveSegments and drained in onCreate. clearLiveTtsPlayback() is
+  called from deactivateSession() and onDestroy().
 - SessionCallback onPlay/onPause + focus/noisy handlers: live branches
   mirroring cold (pauseLive/resumeLive directly; still relay to JS so JS
   state stays in sync).
-- Tests: extend the android/src/test setup if the harness runs them (check
-  the APK workflow for a test step); at minimum a queue-state unit test in
-  the style of MediaSessionActivationStateTest.
+- Status 2026-11-20 ~11:30: written locally (not yet pushed). Kotlin unit
+  tests: NOT added — the android/src/test harness is not run by CI (to be
+  confirmed from the APK workflow when it runs); the compile check is the
+  "Build test APK" workflow and behaviour is phone-verified (Task E).
 
-### D. Kotlin plugin — NativeTTSPlugin.kt (route to service)
+### C. Kotlin plugin — NativeTTSPlugin.kt (route to service)
 - init/speak/stop/pause/resume/set_rate/set_pitch/set_voice/get_all_voices
-  route to the service live engine. Remove the Activity TextToSpeech engine,
-  its listener, and the 30-min idle timer (replaced by the service engine).
-  Keep ExoPlayer playout, all media-session commands, destroy() minus the
-  engine shutdown. stop parses the handover arg.
+  route to the service live engine. init starts the service and polls
+  readiness up to 3 s; speak resolves immediately with a UUID and routes
+  preload to enqueueLive, live to speakLiveNow; get_all_voices polls
+  readiness up to 2 s and maps the service voices (same id/name logic as
+  before); set_voice validates against the service voices first. Removed:
+  the Activity TextToSpeech engine, its listener, the event-channel
+  machinery, and the 30-min idle timer. resume stays a no-op (WebView resume
+  re-speaks). Kept untouched: ExoPlayer playout, all media-session commands,
+  destroy() minus the engine shutdown.
+- Status 2026-11-20 ~11:30: written locally (not yet pushed). The earlier
+  Rust StopArgs{handover} plumbing was written and fully reverted — all 4
+  Rust files clean; the stop invoke keeps its no-arg form.
 
-### E. PR + CI
+### D. PR + CI
 - Push per task, draft PR early, verify RED then GREEN per task in CI
   (build_web_app + build_tauri_app; both shards at baseline).
 - Kotlin compile-check: run the "Build test APK" workflow on the branch
   (build_tauri_app does not compile Android Kotlin). Check whether CI runs
   ./gradlew test; if not, Kotlin tests are documented as phone-verified only.
+- Status: PR #7 draft open (head 2a461a98, tests only). RED run confirmed
+  (build_web_app failure + both shards failure) — the build_web_app failure
+  is undiagnosed; a browser task is reading its job log (run 44680040872,
+  job 136100961636). Implementation push waits on that diagnosis.
 
-### F. Test APK + phone test (deciding check)
+### E. Test APK + phone test (deciding check)
 - Release APK from the branch (fresh test keystore flow, as for v0.12.16),
   user tests on his phone: play, home screen (audio continues past 3 min),
   lock-screen pause/play, skip. A passing CI build is never the proof.

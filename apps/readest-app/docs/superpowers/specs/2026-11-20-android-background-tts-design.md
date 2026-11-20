@@ -42,11 +42,28 @@ because:
 4. **TTSController.ts** — no change expected (preloadNextSSML already feeds
    ahead for every engine).
 
-## Open design decision (settle during build)
+## Open design decision (SETTLED during Task A)
 With preloading real, the live loop must not re-issue sentences already
-queued, or they double-speak. Either the live loop skips preloaded marks,
-or the service dedupes by mark/text. Decide from the code when writing the
-preload test; do not assume.
+queued, or they double-speak. Settled: the dedupe lives in the TS client
+(a queued-marks map, mark.name -> utteranceId). Preload of an already-queued
+mark is a no-op; live speak of a queued mark attaches to its utterance
+events; live speak of an unqueued mark invokes speak (flush + fresh).
+
+Handover stop, also settled: the client's stop(handover=true) is a NO-OP on
+Android — the service is already speaking the next paragraph's queued audio,
+and cutting it would skip its first sentence. A user skip mid-sentence is
+cut by the speak loop's abort handler (full stop), not by the handover path.
+On iOS the synthesizer queue is flushed by a stop, so the client clears the
+map there. No Rust change and no handover flag in the plugin: the plugin's
+stop stays a clear-all, as today.
+
+Fresh-invoke flush, settled during Task A: a live speak of an unqueued mark
+flushes the service queue (speakLiveNow), so every still-queued mark is gone
+with it. The client therefore clears the queued-marks map (and their
+utterance entries) on Android before a fresh live invoke — otherwise a later
+live speak would attach to a flushed utterance and wait forever. On iOS the
+synthesizer queues instead of flushing, so queued marks stay valid there and
+the map is kept.
 
 ## Non-goals
 No new engine, no cloud TTS, no web changes, no UI redesign, no iOS changes.

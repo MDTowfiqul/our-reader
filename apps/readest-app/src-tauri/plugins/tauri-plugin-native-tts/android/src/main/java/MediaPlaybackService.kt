@@ -23,6 +23,7 @@ import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -124,6 +125,28 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
     private var coldTtsConfigPath: String? = null
     private var coldTtsSavedCfi: String? = null
 
+    // Live TTS: the reader's sentence queue, owned by the service so speech
+    // survives the WebView stalling and the Activity being destroyed. Mirrors
+    // the cold EPUB path: one engine on the application context, segments
+    // spoken one at a time chained on onDone. The WebView feeds sentences
+    // (enqueueLive / speakLiveNow) and attaches to their utterance events;
+    // the service owns the audio. The engine never holds more than the
+    // segment now sounding — the queue lives here, not in TextToSpeech —
+    // because engine.stop() clears the engine queue and a paragraph boundary
+    // must not drop the sentences already queued.
+    private data class LiveSegment(val utteranceId: String, val text: String)
+
+    private var liveTts: TextToSpeech? = null
+    private var liveTtsReady = false
+    private var liveTtsPaused = false
+    private var liveTtsGeneration = 0
+    private val liveQueue: ArrayDeque<LiveSegment> = ArrayDeque()
+    private var liveCurrent: LiveSegment? = null
+    private var livePausedSegment: LiveSegment? = null
+    private var liveRate = 1.0f
+    private var livePitch = 1.0f
+    private var liveVoiceName: String? = null
+
     // True only between session activation (TTS playback started) and
     // deactivation. Android Auto can bind this service at any time to browse,
     // so every playback side effect (audio focus, the silent keep-alive
@@ -140,7 +163,12 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
     // as lock-screen buttons; the JS TTSController pause/resume pushes state
     // back down and the keep-alive player follows (applyPlaybackState). The
     // local player is also flipped immediately so the lock-screen card does
-    // not lag the round trip.
+    // not lag the round trip. The live service engine is paused/resumed
+    // directly as well, because the JS relay is lost when the page is frozen
+    // — the cold path already does the same for its engine.
+    private fun isLiveTtsPlaying(): Boolean =
+        !liveTtsPaused && (liveCurrent != null || liveQueue.isNotEmpty())
+
     private val afChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         Log.i("MediaPlaybackService", "Audio focus changed: $focusChange, playing=${player.isPlaying}")
         when (focusChange) {
@@ -150,6 +178,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
                     if (coldTtsActive) {
                         resumeColdTts()
                     } else {
+                        if (liveTtsPaused) resumeLiveTts()
                         player.play()
                         pluginEventTrigger?.invoke("media-session-play", JSObject())
                         updatePlaybackState()
@@ -165,6 +194,10 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
                 resumeOnFocusGain = player.isPlaying
                 if (coldTtsActive) {
                     pauseColdTts()
+                } else if (isLiveTtsPlaying()) {
+                    pauseLiveTts()
+                    pluginEventTrigger?.invoke("media-session-pause", JSObject())
+                    updatePlaybackState()
                 } else if (player.isPlaying) {
                     player.pause()
                     pluginEventTrigger?.invoke("media-session-pause", JSObject())
@@ -177,6 +210,10 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
                 resumeOnFocusGain = false
                 if (coldTtsActive) {
                     pauseColdTts()
+                } else if (isLiveTtsPlaying()) {
+                    pauseLiveTts()
+                    pluginEventTrigger?.invoke("media-session-pause", JSObject())
+                    updatePlaybackState()
                 } else if (player.isPlaying) {
                     player.pause()
                     pluginEventTrigger?.invoke("media-session-pause", JSObject())
@@ -195,6 +232,10 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
             resumeOnFocusGain = false
             if (coldTtsActive) {
                 pauseColdTts()
+            } else if (isLiveTtsPlaying()) {
+                pauseLiveTts()
+                pluginEventTrigger?.invoke("media-session-pause", JSObject())
+                updatePlaybackState()
             } else if (player.isPlaying) {
                 player.pause()
                 pluginEventTrigger?.invoke("media-session-pause", JSObject())
@@ -532,11 +573,108 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
             val service = instance ?: return
             Handler(Looper.getMainLooper()).post { service.applyPlaybackState(playing) }
         }
+
+        // Live TTS queue: in-process calls on the running instance, like
+        // pushMetadata — never startService(), which is rejected once the app
+        // is backgrounded. When the service does not exist yet, sentences are
+        // held in pendingLiveSegments and drained in onCreate.
+        fun enqueueLive(utteranceId: String, text: String) {
+            val service = instance
+            if (service == null) {
+                synchronized(this) { pendingLiveSegments.addLast(LiveSegment(utteranceId, text)) }
+                return
+            }
+            Handler(Looper.getMainLooper()).post { service.enqueueLiveTts(utteranceId, text) }
+        }
+
+        fun speakLiveNow(utteranceId: String, text: String) {
+            val service = instance
+            if (service == null) {
+                synchronized(this) {
+                    pendingLiveSegments.clear()
+                    pendingLiveSegments.addLast(LiveSegment(utteranceId, text))
+                }
+                return
+            }
+            Handler(Looper.getMainLooper()).post { service.speakLiveTtsNow(utteranceId, text) }
+        }
+
+        fun stopLive() {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.stopLiveTts() }
+        }
+
+        fun pauseLive() {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.pauseLiveTts() }
+        }
+
+        fun resumeLive() {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.resumeLiveTts() }
+        }
+
+        fun setLiveRate(rate: Float) {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.setLiveTtsRate(rate) }
+        }
+
+        fun setLivePitch(pitch: Float) {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.setLiveTtsPitch(pitch) }
+        }
+
+        fun setLiveVoice(voiceName: String?) {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.setLiveTtsVoice(voiceName) }
+        }
+
+        fun getLiveVoices(): List<Voice> {
+            return instance?.liveTtsVoices() ?: emptyList()
+        }
+
+        fun isLiveTtsReady(): Boolean {
+            return instance?.liveTtsReady == true
+        }
+
+        // Sentences enqueued before the service exists (the plugin probes the
+        // engine at controller init, before any session starts the service):
+        // held here and drained into the live queue once the service is
+        // created, mirroring pendingBookHash.
+        private val pendingLiveSegments: ArrayDeque<LiveSegment> = ArrayDeque()
+
+        fun ensureService(context: Context) {
+            if (instance != null) return
+            context.startService(Intent(context, MediaPlaybackService::class.java))
+        }
+
+        // Ask the running service to create its live TTS engine (idempotent).
+        // The plugin calls this from init and get_all_voices so voices exist
+        // before any sentence is spoken; enqueueLive/speakLiveNow trigger it
+        // too, via enqueueLiveTts/speakLiveTtsNow.
+        fun ensureLive() {
+            val service = instance ?: return
+            Handler(Looper.getMainLooper()).post { service.ensureLiveTts() }
+        }
+
+        fun drainPendingLiveSegments() {
+            val service = instance ?: return
+            val pending = synchronized(this) {
+                val copy = pendingLiveSegments.toList()
+                pendingLiveSegments.clear()
+                copy
+            }
+            if (pending.isEmpty()) return
+            Handler(Looper.getMainLooper()).post {
+                for (segment in pending) service.enqueueLiveTts(segment.utteranceId, segment.text)
+            }
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+        drainPendingLiveSegments()
         // Android Auto binds this service cold (no session); restore the
         // persisted library and last-book fallback before it requests a root.
         loadLastBook(this)
@@ -629,6 +767,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
     private fun deactivateSession() {
         if (!sessionActive) return
         clearColdTtsPlayback()
+        clearLiveTtsPlayback()
         sessionActive = false
 
         player.playWhenReady = false
@@ -928,6 +1067,219 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
         coldTts = null
     }
 
+    // ----- Live TTS (reader sentences) -----
+
+    private fun ensureLiveTts() {
+        if (liveTts == null) initializeLiveTts(liveTtsGeneration)
+    }
+
+    private fun initializeLiveTts(generation: Int) {
+        lateinit var engine: TextToSpeech
+        engine = TextToSpeech(applicationContext) { status ->
+            mainHandler.post {
+                if (generation != liveTtsGeneration) {
+                    engine.shutdown()
+                    return@post
+                }
+                if (status != TextToSpeech.SUCCESS) {
+                    failLiveTts("Android text-to-speech could not start")
+                    return@post
+                }
+                engine.setAudioAttributes(SPOKEN_MEDIA_ATTRIBUTES)
+                engine.setSpeechRate(liveRate)
+                engine.setPitch(livePitch)
+                applyLiveVoice(engine)
+                engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        mainHandler.post {
+                            if (isCurrentLiveUtterance(utteranceId)) {
+                                emitLiveTtsEvent(utteranceId, "boundary", "start")
+                            }
+                        }
+                    }
+
+                    override fun onDone(utteranceId: String?) {
+                        mainHandler.post {
+                            if (!isCurrentLiveUtterance(utteranceId)) return@post
+                            emitLiveTtsEvent(utteranceId, "end")
+                            liveCurrent = null
+                            maybeSpeakLiveTts()
+                        }
+                    }
+
+                    @Deprecated("Deprecated in Android")
+                    override fun onError(utteranceId: String?) {
+                        mainHandler.post {
+                            if (!isCurrentLiveUtterance(utteranceId)) return@post
+                            emitLiveTtsEvent(utteranceId, "error", "TTS playback error")
+                            liveCurrent = null
+                            maybeSpeakLiveTts()
+                        }
+                    }
+
+                    override fun onError(utteranceId: String?, errorCode: Int) = onError(utteranceId)
+                })
+                liveTts = engine
+                liveTtsReady = true
+                maybeSpeakLiveTts()
+            }
+        }
+        liveTts = engine
+    }
+
+    private fun failLiveTts(message: String) {
+        Log.e("MediaPlaybackService", message)
+        liveTtsReady = false
+        liveTts?.shutdown()
+        liveTts = null
+        // Every sentence the reader is waiting on must resolve, or its live
+        // speak loop waits forever: report the failure on each of them.
+        val pending = ArrayDeque(liveQueue)
+        liveCurrent?.let { pending.addFirst(it) }
+        livePausedSegment?.let { pending.addFirst(it) }
+        liveQueue.clear()
+        liveCurrent = null
+        livePausedSegment = null
+        for (segment in pending) {
+            emitLiveTtsEvent(segment.utteranceId, "error", message)
+        }
+    }
+
+    private fun emitLiveTtsEvent(utteranceId: String?, code: String, message: String? = null) {
+        val id = utteranceId ?: return
+        val trigger = pluginEventTrigger ?: return
+        trigger(
+            "tts_events",
+            JSObject().apply {
+                put("utteranceId", id)
+                put("code", code)
+                message?.let { put("message", it) }
+            },
+        )
+    }
+
+    private fun isCurrentLiveUtterance(utteranceId: String?): Boolean =
+        utteranceId != null && utteranceId == liveCurrent?.utteranceId
+
+    private fun applyLiveVoice(engine: TextToSpeech) {
+        val name = liveVoiceName ?: return
+        val voice = engine.voices?.find { voice ->
+            val languageTag = voice.locale.toLanguageTag()
+            voice.name == name || (languageTag.contains(voice.name) && languageTag == name)
+        } ?: return
+        engine.voice = voice
+    }
+
+    private fun maybeSpeakLiveTts() {
+        if (liveTtsPaused || !liveTtsReady || liveCurrent != null) return
+        val next = liveQueue.removeFirstOrNull() ?: return
+        speakLiveTtsSegment(next)
+    }
+
+    private fun speakLiveTtsSegment(segment: LiveSegment) {
+        val engine = liveTts ?: return
+        liveCurrent = segment
+        if (ownsAudioFocus) requestFocus()
+        player.play()
+        mediaSession?.setPlaybackState(
+            stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, 0L, 1f).build(),
+        )
+        showNotification(PlaybackStateCompat.STATE_PLAYING)
+        val result = engine.speak(segment.text, TextToSpeech.QUEUE_FLUSH, null, segment.utteranceId)
+        if (result == TextToSpeech.ERROR) {
+            emitLiveTtsEvent(segment.utteranceId, "error", "Android text-to-speech rejected the text")
+            liveCurrent = null
+            maybeSpeakLiveTts()
+        }
+    }
+
+    private fun enqueueLiveTts(utteranceId: String, text: String) {
+        ensureLiveTts()
+        liveQueue.addLast(LiveSegment(utteranceId, text))
+        maybeSpeakLiveTts()
+    }
+
+    private fun speakLiveTtsNow(utteranceId: String, text: String) {
+        ensureLiveTts()
+        // A fresh live sentence supersedes everything queued (a skip, or a
+        // sentence the feed-ahead never reached): drop the stale queue and
+        // the paused segment, then speak this one.
+        liveQueue.clear()
+        liveCurrent = null
+        livePausedSegment = null
+        liveTtsPaused = false
+        liveTts?.stop()
+        liveQueue.addLast(LiveSegment(utteranceId, text))
+        maybeSpeakLiveTts()
+    }
+
+    private fun stopLiveTts() {
+        liveQueue.clear()
+        liveCurrent = null
+        livePausedSegment = null
+        liveTtsPaused = false
+        liveTts?.stop()
+    }
+
+    private fun pauseLiveTts() {
+        if (liveTtsPaused) return
+        liveTtsPaused = true
+        // Keep the segment now sounding so a service-side resume (lock screen,
+        // audio focus) can re-speak it; the engine stop below ends it.
+        livePausedSegment = liveCurrent
+        liveCurrent = null
+        liveTts?.stop()
+        player.pause()
+        mediaSession?.setPlaybackState(
+            stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1f).build(),
+        )
+        showNotification(PlaybackStateCompat.STATE_PAUSED)
+    }
+
+    private fun resumeLiveTts() {
+        // Only the service-side transports (lock screen, audio focus) resume
+        // here: the WebView resume re-speaks the current sentence itself, so
+        // the plugin's resume stays a no-op and never reaches this.
+        if (!liveTtsPaused) return
+        liveTtsPaused = false
+        livePausedSegment?.let {
+            liveQueue.addFirst(it)
+            livePausedSegment = null
+        }
+        maybeSpeakLiveTts()
+    }
+
+    private fun setLiveTtsRate(rate: Float) {
+        liveRate = rate
+        liveTts?.setSpeechRate(rate)
+    }
+
+    private fun setLiveTtsPitch(pitch: Float) {
+        livePitch = pitch
+        liveTts?.setPitch(pitch)
+    }
+
+    private fun setLiveTtsVoice(voiceName: String?) {
+        liveVoiceName = voiceName
+        liveTts?.let { applyLiveVoice(it) }
+    }
+
+    private fun liveTtsVoices(): List<Voice> {
+        return liveTts?.voices?.toList() ?: emptyList()
+    }
+
+    private fun clearLiveTtsPlayback() {
+        liveTtsGeneration += 1
+        liveTtsPaused = false
+        liveTtsReady = false
+        liveQueue.clear()
+        liveCurrent = null
+        livePausedSegment = null
+        liveTts?.stop()
+        liveTts?.shutdown()
+        liveTts = null
+    }
+
     private fun handoffColdTtsToWebView(hash: String) {
         if (coldTtsBookHash != hash) return
         clearColdTtsPlayback()
@@ -955,6 +1307,12 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
                 resumeColdTts()
                 return
             }
+            // A paused live session resumes its engine directly as well as
+            // relaying to the WebView: the relay is lost when the page is
+            // frozen, and the WebView resume re-speaks the sentence, which
+            // supersedes this resume — so the sentence restarts once, which
+            // is the right outcome after an interruption.
+            if (liveTtsPaused) resumeLiveTts()
             if (!sessionActive) {
                 onPlayFromMediaId(lastBookHash?.let { "$BOOK_MEDIA_ID_PREFIX$it" }, null)
                 return
@@ -982,6 +1340,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
                 }
                 return
             }
+            if (isLiveTtsPlaying()) pauseLiveTts()
             player.pause()
             pluginEventTrigger?.invoke("media-session-pause", JSObject())
             updatePlaybackState()
@@ -1582,6 +1941,7 @@ class MediaPlaybackService : MediaBrowserServiceCompat() {
         instance = null
         cancelSelectionWatchdog()
         clearColdTtsPlayback()
+        clearLiveTtsPlayback()
         coldTextExecutor.shutdownNow()
         if (noisyReceiverRegistered) {
             noisyReceiverRegistered = false

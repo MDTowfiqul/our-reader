@@ -30,9 +30,7 @@ describe('NativeTTSClient.stop', () => {
 
     await client.stop();
 
-    expect(invoke).toHaveBeenCalledWith('plugin:native-tts|stop', {
-      payload: { handover: false },
-    });
+    expect(invoke).toHaveBeenCalledWith('plugin:native-tts|stop');
   });
 
   test('still resolves (bounded) when the native stop never resolves', async () => {
@@ -94,9 +92,7 @@ describe('NativeTTSClient preload (background queue)', () => {
   };
 
   const speakCalls = () =>
-    vi
-      .mocked(invoke)
-      .mock.calls.filter((call) => call[0] === 'plugin:native-tts|speak');
+    vi.mocked(invoke).mock.calls.filter((call) => call[0] === 'plugin:native-tts|speak');
 
   test('preload queues the sentence natively and returns without waiting for speech', async () => {
     const client = new NativeTTSClient(androidController);
@@ -160,6 +156,38 @@ describe('NativeTTSClient preload (background queue)', () => {
     ]);
   });
 
+  test('live speak of an unqueued mark flushes previously queued marks on Android', async () => {
+    const client = new NativeTTSClient(androidController);
+    await client.init();
+    await flush();
+    const signal = new AbortController().signal;
+    await drain(client.speakMark(makeMark('m1', 'First sentence'), true, signal));
+    await drain(client.speakMark(makeMark('m2', 'Second sentence'), true, signal));
+
+    // m3 was never preloaded: the fresh live speak flushes the service queue,
+    // so m1/m2 are gone with it.
+    const livePromise = drain(
+      client.speakMark(makeMark('m3', 'Third sentence'), false, signal),
+    );
+    await flush();
+    listenerCallback()!({ utteranceId: 'u3', code: 'end' });
+    await livePromise;
+
+    // A later live speak of m1 must invoke fresh (u4), not attach to the
+    // flushed u1.
+    const replayPromise = drain(
+      client.speakMark(makeMark('m1', 'First sentence'), false, signal),
+    );
+    await flush();
+    listenerCallback()!({ utteranceId: 'u4', code: 'end' });
+    await replayPromise;
+    expect(speakCalls()).toHaveLength(4);
+    expect(speakCalls()[3]).toEqual([
+      'plugin:native-tts|speak',
+      { payload: { text: 'First sentence', preload: false } },
+    ]);
+  });
+
   test('handover stop on Android keeps queued marks so the next live speak attaches', async () => {
     const client = new NativeTTSClient(androidController);
     await client.init();
@@ -169,9 +197,13 @@ describe('NativeTTSClient preload (background queue)', () => {
 
     await client.stop(true);
 
-    expect(invoke).toHaveBeenCalledWith('plugin:native-tts|stop', {
-      payload: { handover: true },
-    });
+    // A handover is a no-op on Android: the service is already speaking the
+    // next paragraph's queued audio, and cutting it would skip its first
+    // sentence.
+    const stopCalls = vi
+      .mocked(invoke)
+      .mock.calls.filter((call) => call[0] === 'plugin:native-tts|stop');
+    expect(stopCalls).toHaveLength(0);
     const livePromise = drain(client.speakMark(makeMark('m1'), false, signal));
     await flush();
     listenerCallback()!({ utteranceId: 'u1', code: 'end' });
